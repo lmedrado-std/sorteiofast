@@ -91,7 +91,7 @@ export default function SalesPage() {
         campaignEndDate: new Date(savedConfig.campaignEndDate),
       };
     }
-
+    
     setCampaignConfig(activeConfig);
     setIsCampaignActive(isCampaignStillActive(activeConfig.campaignEndDate));
     setAllSales(getFromStorage<Sale>('supersorteios_sales'));
