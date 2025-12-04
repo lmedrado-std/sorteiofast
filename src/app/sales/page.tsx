@@ -249,7 +249,7 @@ export default function SalesPage() {
                       </div>
                   ) : (
                   <Form {...saleForm}>
-                    <form onSubmit={saleForm.handleSubmit(onSaleSubmit)} className="space-y-6">
+                    <form onSubmit={saleForm.handleSubmit(onSaleSubmit)} className="space-y-4">
                       <FormField
                         control={saleForm.control}
                         name="sellerName"
