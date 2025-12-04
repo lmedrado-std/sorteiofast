@@ -45,6 +45,7 @@ import AppHeader from '@/components/app/AppHeader';
 import CountdownTimer from '@/components/app/CountdownTimer';
 import { CalendarIcon, LogIn, PlusCircle, Search, Ticket, User, VerifiedIcon } from 'lucide-react';
 import { getFromStorage, addToStorage } from '@/lib/storage';
+import { CAMPAIGN_END_DATE, COUPON_VALUE_THRESHOLD } from '@/lib/config';
 
 
 const saleSchema = z.object({
@@ -99,7 +100,7 @@ export default function SalesPage() {
     const saleId = `SALE-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
     const sale: Sale = { ...data, id: saleId, employeeId: data.cpf };
 
-    const couponCount = Math.floor(data.value / 1000);
+    const couponCount = Math.floor(data.value / COUPON_VALUE_THRESHOLD);
     
     if (couponCount > 0) {
         const newCoupons: Coupon[] = Array.from({ length: couponCount }, () => ({
@@ -125,7 +126,7 @@ export default function SalesPage() {
         addToStorage('supersorteios_sales', sale);
         toast({
             title: "Venda Registrada",
-            description: "A venda foi registrada, mas o valor não foi suficiente para gerar um cupom (mínimo R$ 1000).",
+            description: `A venda foi registrada, mas o valor não foi suficiente para gerar um cupom (mínimo R$ ${COUPON_VALUE_THRESHOLD}).`,
         });
     }
     
@@ -136,13 +137,7 @@ export default function SalesPage() {
       date: new Date(),
     });
   }
-
-  // Set this for the countdown timer. E.g., end of next month.
-  const campaignEndDate = new Date();
-  campaignEndDate.setMonth(campaignEndDate.getMonth() + 1);
-  campaignEndDate.setDate(0); // Last day of current month
-  campaignEndDate.setHours(23, 59, 59);
-
+  
   return (
     <div className="flex flex-col min-h-screen">
       <AppHeader />
@@ -159,7 +154,7 @@ export default function SalesPage() {
             </CardHeader>
           </Card>
           
-          <CountdownTimer targetDate={campaignEndDate.toISOString()} />
+          <CountdownTimer targetDate={CAMPAIGN_END_DATE} />
 
           <Tabs defaultValue="sales" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -175,7 +170,7 @@ export default function SalesPage() {
                 <CardHeader>
                   <CardTitle>Nova Venda</CardTitle>
                   <CardDescription>
-                    Preencha os dados da venda. Para cada R$ 1.000,00, um cupom será gerado.
+                    Preencha os dados da venda. Para cada R$ {COUPON_VALUE_THRESHOLD},00, um cupom será gerado.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
