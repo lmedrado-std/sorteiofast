@@ -43,7 +43,7 @@ import { cn } from '@/lib/utils';
 import type { Sale, Coupon } from '@/lib/types';
 import AppHeader from '@/components/app/AppHeader';
 import CountdownTimer from '@/components/app/CountdownTimer';
-import { CalendarIcon, PlusCircle, Ticket, User, VerifiedIcon } from 'lucide-react';
+import { CalendarIcon, LogIn, PlusCircle, Ticket, User, VerifiedIcon } from 'lucide-react';
 
 const saleSchema = z.object({
   sellerName: z.string().min(1, 'Nome do vendedor é obrigatório.'),
@@ -53,6 +53,10 @@ const saleSchema = z.object({
     required_error: 'A data da venda é obrigatória.',
   }),
   store: z.string({ required_error: 'A loja é obrigatória.'}),
+});
+
+const loginSchema = z.object({
+  cpf: z.string().min(11, 'CPF deve ter 11 dígitos.').max(11, 'CPF deve ter 11 dígitos.'),
 });
 
 // Mocking a client-side "database" using localStorage
@@ -74,22 +78,16 @@ const addToStorage = <T>(key: string, newData: T | T[]): void => {
   localStorage.setItem(key, JSON.stringify([...existingData, ...dataToAdd]));
 };
 
-
 export default function SalesPage() {
   const { toast } = useToast();
-  const [employeeId, setEmployeeId] = useState<string | null>(null);
+  const [loggedInCpf, setLoggedInCpf] = useState<string | null>(null);
   const [myCoupons, setMyCoupons] = useState<Coupon[]>([]);
 
   useEffect(() => {
-    let id = localStorage.getItem('supersorteios_employeeId');
-    if (!id) {
-      id = `EMP-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
-      localStorage.setItem('supersorteios_employeeId', id);
+    const cpf = sessionStorage.getItem('loggedInCpf');
+    if (cpf) {
+      handleLoginSuccess(cpf);
     }
-    setEmployeeId(id);
-
-    const allCoupons = getFromStorage<Coupon>('supersorteios_coupons');
-    setMyCoupons(allCoupons.filter(c => c.employeeId === id));
   }, []);
 
   const form = useForm<z.infer<typeof saleSchema>>({
@@ -102,18 +100,56 @@ export default function SalesPage() {
     },
   });
 
+  const loginForm = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      cpf: '',
+    }
+  });
+
+  const handleLoginSuccess = (cpf: string) => {
+    setLoggedInCpf(cpf);
+    sessionStorage.setItem('loggedInCpf', cpf);
+
+    const allSales = getFromStorage<Sale>('supersorteios_sales');
+    const employeeSales = allSales.filter(sale => sale.cpf === cpf);
+    const saleIds = employeeSales.map(sale => sale.id);
+
+    const allCoupons = getFromStorage<Coupon>('supersorteios_coupons');
+    const employeeCoupons = allCoupons.filter(coupon => saleIds.includes(coupon.saleId));
+    
+    setMyCoupons(employeeCoupons);
+
+    // Pre-fill the form
+    const latestSale = employeeSales.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    form.reset({
+      sellerName: latestSale?.sellerName || '',
+      cpf: cpf,
+      value: 0,
+      date: new Date(),
+    });
+  };
+
+  const onLoginSubmit = (data: z.infer<typeof loginSchema>) => {
+    handleLoginSuccess(data.cpf);
+    toast({
+      title: 'Login efetuado!',
+      description: 'Bem-vindo(a) de volta!',
+    });
+  };
+
   function onSubmit(data: z.infer<typeof saleSchema>) {
-    if (!employeeId) {
+    if (!loggedInCpf) {
         toast({
             variant: "destructive",
             title: "Erro",
-            description: "ID do funcionário não encontrado. Recarregue a página.",
+            description: "CPF do vendedor não encontrado. Faça login novamente.",
         });
         return;
     }
 
     const saleId = `SALE-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
-    const sale: Sale = { ...data, id: saleId, employeeId };
+    const sale: Sale = { ...data, id: saleId, employeeId: loggedInCpf }; // Using CPF as employeeId for simplicity
 
     const couponCount = Math.floor(data.value / 1000);
     
@@ -121,7 +157,7 @@ export default function SalesPage() {
         const newCoupons: Coupon[] = Array.from({ length: couponCount }, () => ({
             id: `CUPOM-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
             saleId: sale.id,
-            employeeId,
+            employeeId: loggedInCpf, // Using CPF as employeeId for simplicity
         }));
         
         addToStorage('supersorteios_sales', sale);
@@ -140,7 +176,13 @@ export default function SalesPage() {
             description: "A venda foi registrada, mas o valor não foi suficiente para gerar um cupom (mínimo R$ 1000).",
         });
     }
-    form.reset();
+    
+    // Reset only value and date
+    form.reset({
+      ...form.getValues(),
+      value: 0,
+      date: new Date(),
+    });
   }
 
   // Set this for the countdown timer. E.g., end of next month.
@@ -148,6 +190,51 @@ export default function SalesPage() {
   campaignEndDate.setMonth(campaignEndDate.getMonth() + 1);
   campaignEndDate.setDate(0); // Last day of current month
   campaignEndDate.setHours(23, 59, 59);
+
+
+  if (!loggedInCpf) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <AppHeader />
+        <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
+          <Card className="max-w-md w-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                <User className="w-6 h-6" />
+                Acesso do Funcionário
+              </CardTitle>
+              <CardDescription>
+                Por favor, insira seu CPF para registrar vendas e ver seus cupons.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...loginForm}>
+                <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                  <FormField
+                    control={loginForm.control}
+                    name="cpf"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>CPF</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Digite seu CPF (apenas números)" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full">
+                    <LogIn className="mr-2" />
+                    Entrar
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -160,7 +247,7 @@ export default function SalesPage() {
                 <User /> Painel do Funcionário
               </CardTitle>
               <CardDescription>
-                Seu ID de funcionário para esta sessão é: <span className="font-bold text-primary">{employeeId}</span>
+                Bem-vindo(a)! CPF logado: <span className="font-bold text-primary">{loggedInCpf}</span>
               </CardDescription>
             </CardHeader>
           </Card>
@@ -207,7 +294,7 @@ export default function SalesPage() {
                           <FormItem>
                             <FormLabel>CPF</FormLabel>
                             <FormControl>
-                              <Input placeholder="Ex: 12345678900" {...field} />
+                              <Input placeholder="Ex: 12345678900" {...field} disabled />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
