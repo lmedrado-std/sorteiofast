@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { AnimatePresence, motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { collection, query, where, getDocs, doc, writeBatch } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -140,10 +140,15 @@ export default function SalesPage() {
       
       // Batch-fetch related sales
       const saleIds = [...new Set(employeeCoupons.map(c => c.saleId))];
+      if (saleIds.length === 0) {
+          setMyCoupons(employeeCoupons.map(c => ({...c}))); // Show coupons even without sales
+          return;
+      }
+      
       const salesRef = collection(firestore, 'sales');
-      const salesQuery = query(salesRef, where('id', 'in', saleIds));
+      const salesQuery = query(salesRef, where('__name__', 'in', saleIds));
       const salesSnap = await getDocs(salesQuery);
-      const salesData = salesSnap.docs.map(doc => doc.data() as Sale);
+      const salesData = salesSnap.docs.map(doc => ({...doc.data() as Sale, id: doc.id}));
 
       const couponsWithSaleData: CouponWithSaleData[] = employeeCoupons.map(coupon => {
         const sale = salesData.find(s => s.id === coupon.saleId);
@@ -192,34 +197,43 @@ export default function SalesPage() {
     }
 
     try {
-      const saleId = `SALE-${doc(collection(firestore, 'sales')).id}`;
-      const sale: Sale = { ...data, id: saleId, employeeId: data.cpf, date: data.date };
+        const salesColRef = collection(firestore, 'sales');
+        const couponsColRef = collection(firestore, 'coupons');
+        
+        // Define the sale object, but we'll get the ID after adding it.
+        const saleData: Omit<Sale, 'id'> = { ...data, employeeId: data.cpf, date: data.date };
+        
+        // Add the sale document and get its reference
+        const saleRef = await addDocumentNonBlocking(salesColRef, saleData);
+        if (!saleRef) {
+            throw new Error("Failed to create sale document.");
+        }
+        
+        const saleId = saleRef.id;
+        const finalSale: Sale = { ...saleData, id: saleId };
 
-      const couponCount = Math.floor(data.value / campaignConfig.couponValueThreshold);
+        const couponCount = Math.floor(data.value / campaignConfig.couponValueThreshold);
       
-      const batch = writeBatch(firestore);
-      
-      // Add sale
-      const saleRef = doc(firestore, "sales", saleId);
-      batch.set(saleRef, sale);
-      
-      // Add coupons
-      let newCoupons: CouponWithSaleData[] = [];
-      if (couponCount > 0) {
-          for (let i = 0; i < couponCount; i++) {
-              const couponId = `CUPOM-${doc(collection(firestore, 'coupons')).id.substring(0, 7).toUpperCase()}`;
-              const newCoupon: Coupon = {
-                  id: couponId,
-                  saleId: sale.id,
-                  employeeId: data.cpf,
-              };
-              const couponRef = doc(firestore, "coupons", couponId);
-              batch.set(couponRef, newCoupon);
-              newCoupons.push({ ...newCoupon, sale });
-          }
-      }
+        let newCoupons: CouponWithSaleData[] = [];
+        if (couponCount > 0) {
+            const couponPromises = [];
+            for (let i = 0; i < couponCount; i++) {
+                const newCoupon: Omit<Coupon, 'id'> = {
+                    saleId: saleId,
+                    employeeId: data.cpf,
+                };
+                // Add each coupon non-blockingly
+                couponPromises.push(addDocumentNonBlocking(couponsColRef, newCoupon));
+            }
+            const couponRefs = await Promise.all(couponPromises);
 
-      await batch.commit();
+            newCoupons = couponRefs.map((couponRef, i) => ({
+              id: couponRef.id,
+              saleId,
+              employeeId: data.cpf,
+              sale: finalSale,
+            }));
+        }
 
       // If the user is viewing their own coupons, update the list
       if (viewingCpf === data.cpf) {
@@ -530,3 +544,5 @@ export default function SalesPage() {
     </div>
   );
 }
+
+    
