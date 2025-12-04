@@ -50,7 +50,7 @@ export default function Home() {
                         data-ai-hint={employeeImage.imageHint}
                         width={600}
                         height={400}
-                        className="h-52 w-full object-cover transition duration-500 group-hover:scale-105"
+                        className="h-40 w-full object-cover transition duration-500 group-hover:scale-105"
                     />
                     </div>
                 </div>
@@ -95,7 +95,7 @@ export default function Home() {
                         data-ai-hint={adminImage.imageHint}
                         width={600}
                         height={400}
-                        className="h-52 w-full object-cover transition duration-500 group-hover:scale-105"
+                        className="h-40 w-full object-cover transition duration-500 group-hover:scale-105"
                     />
                     </div>
                 </div>
