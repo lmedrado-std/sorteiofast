@@ -16,4 +16,4 @@ export const COUPON_VALUE_THRESHOLD = 1000;
  * O formato é 'YYYY-MM-DDTHH:mm:ss'.
  * O contador na página de vendas usará esta data para a contagem regressiva.
  */
-export const CAMPAIGN_END_DATE = '2024-12-31T23:59:59';
+export const CAMPAIGN_END_DATE = '2025-12-31T23:59:59';
