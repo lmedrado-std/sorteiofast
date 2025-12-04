@@ -1,3 +1,16 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "employee-area",
+      "description": "An illustration of an employee working at a fashion store.",
+      "imageUrl": "https://images.unsplash.com/photo-1653666866518-d01fabfa94c2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxmYXNoaW9uJTIwZW1wbG95ZWV8ZW58MHx8fHwxNzY0ODc0MjYyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "fashion employee"
+    },
+    {
+      "id": "admin-area",
+      "description": "An illustration of a manager's desk with charts and graphs.",
+      "imageUrl": "https://images.unsplash.com/photo-1631006732121-a6da2f4864d3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxhZG1pbiUyMGRhc2hib2FyZHxlbnwwfHx8fDE3NjQ4NzQyNjJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "admin dashboard"
+    }
+  ]
 }
