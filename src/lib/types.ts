@@ -5,6 +5,7 @@ export type Sale = {
   value: number;
   date: Date;
   employeeId: string;
+  store: string;
 };
 
 export type Coupon = {

@@ -25,6 +25,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Tabs,
   TabsContent,
   TabsList,
@@ -45,6 +52,7 @@ const saleSchema = z.object({
   date: z.date({
     required_error: 'A data da venda é obrigatória.',
   }),
+  store: z.string({ required_error: 'A loja é obrigatória.'}),
 });
 
 // Mocking a client-side "database" using localStorage
@@ -201,6 +209,27 @@ export default function SalesPage() {
                             <FormControl>
                               <Input placeholder="Ex: 12345678900" {...field} />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="store"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Loja</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione a loja" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Supermoda Dias D'Ávila">Supermoda Dias D'Ávila</SelectItem>
+                                <SelectItem value="Supermoda Catu">Supermoda Catu</SelectItem>
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}

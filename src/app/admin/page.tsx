@@ -128,6 +128,7 @@ export default function AdminPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Cupom ID</TableHead>
+                      <TableHead>Loja</TableHead>
                       <TableHead>Nome do Vendedor</TableHead>
                       <TableHead>CPF</TableHead>
                       <TableHead>Valor da Venda</TableHead>
@@ -141,6 +142,7 @@ export default function AdminPage() {
                         return (
                           <TableRow key={coupon.id}>
                             <TableCell><Badge variant="outline" className="font-mono">{coupon.id}</Badge></TableCell>
+                            <TableCell>{sale?.store || 'N/A'}</TableCell>
                             <TableCell>{sale ? sale.sellerName : 'N/A'}</TableCell>
                             <TableCell className="font-mono text-sm">{sale ? sale.cpf : 'N/A'}</TableCell>
                             <TableCell>
@@ -154,7 +156,7 @@ export default function AdminPage() {
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">
+                        <TableCell colSpan={6} className="h-24 text-center">
                           Nenhum cupom gerado ainda.
                         </TableCell>
                       </TableRow>

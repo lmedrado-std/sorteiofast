@@ -15,9 +15,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, PartyPopper, Trophy } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import type { Coupon, Sale } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 const raffleSchema = z.object({
     numberOfWinners: z.coerce.number().int().min(1, 'Pelo menos 1 ganhador é necessário.').positive(),
+    store: z.string().optional(),
 });
 
 interface RaffleSectionProps {
@@ -28,6 +30,7 @@ interface RaffleSectionProps {
 interface Winner {
     couponId: string;
     sellerName: string;
+    store: string;
 }
 
 export default function RaffleSection({ allCoupons, allSales }: RaffleSectionProps) {
@@ -43,10 +46,29 @@ export default function RaffleSection({ allCoupons, allSales }: RaffleSectionPro
     });
 
     const onSubmit = async (data: z.infer<typeof raffleSchema>) => {
-        if (data.numberOfWinners > allCoupons.length) {
+        let couponsForRaffle = allCoupons;
+
+        if (data.store && data.store !== 'all') {
+            const saleIdsForStore = allSales
+                .filter(sale => sale.store === data.store)
+                .map(sale => sale.id);
+            
+            couponsForRaffle = allCoupons.filter(coupon => saleIdsForStore.includes(coupon.saleId));
+        }
+
+        if (couponsForRaffle.length === 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Nenhum Cupom',
+                description: `Não há cupons disponíveis para a loja selecionada.`,
+            });
+            return;
+        }
+
+        if (data.numberOfWinners > couponsForRaffle.length) {
             form.setError('numberOfWinners', {
                 type: 'manual',
-                message: 'O número de ganhadores não pode ser maior que o número de cupons.',
+                message: 'O nº de ganhadores não pode ser maior que o nº de cupons da loja.',
             });
             return;
         }
@@ -56,7 +78,7 @@ export default function RaffleSection({ allCoupons, allSales }: RaffleSectionPro
 
         try {
             const result = await conductRaffle({
-                coupons: allCoupons.map(c => c.id),
+                coupons: couponsForRaffle.map(c => c.id),
                 numberOfWinners: data.numberOfWinners,
             });
 
@@ -65,7 +87,8 @@ export default function RaffleSection({ allCoupons, allSales }: RaffleSectionPro
                 const sale = coupon ? allSales.find(s => s.id === coupon.saleId) : undefined;
                 return {
                     couponId,
-                    sellerName: sale ? sale.sellerName : 'Vendedor não encontrado'
+                    sellerName: sale ? sale.sellerName : 'Vendedor não encontrado',
+                    store: sale ? sale.store : 'Loja não encontrada',
                 };
             });
             
@@ -86,6 +109,8 @@ export default function RaffleSection({ allCoupons, allSales }: RaffleSectionPro
             setIsLoading(false);
         }
     };
+    
+    const availableStores = [...new Set(allSales.map(s => s.store))];
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -100,6 +125,29 @@ export default function RaffleSection({ allCoupons, allSales }: RaffleSectionPro
                 <CardContent>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                            <FormField
+                                control={form.control}
+                                name="store"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Filtrar por Loja (Opcional)</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                        <SelectValue placeholder="Sortear para todas as lojas" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todas as Lojas</SelectItem>
+                                        {availableStores.map(store => (
+                                            <SelectItem key={store} value={store}>{store}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
                             <FormField
                                 control={form.control}
                                 name="numberOfWinners"
@@ -150,10 +198,11 @@ export default function RaffleSection({ allCoupons, allSales }: RaffleSectionPro
                                         className="flex flex-wrap items-center gap-3 bg-secondary p-3 rounded-lg"
                                     >
                                         <Trophy className="w-6 h-6 text-amber-500" />
-                                        <div className="flex flex-col">
+                                        <div className="flex flex-col flex-1">
                                             <span className="font-semibold">{winner.sellerName}</span>
-                                            <Badge className="font-mono text-xs w-fit" variant="outline">{winner.couponId}</Badge>
+                                            <span className="text-xs text-muted-foreground">{winner.store}</span>
                                         </div>
+                                        <Badge className="font-mono text-xs w-fit" variant="outline">{winner.couponId}</Badge>
                                     </motion.li>
                                 ))}
                             </AnimatePresence>
