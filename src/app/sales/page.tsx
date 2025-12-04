@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { AnimatePresence, motion } from 'framer-motion';
-import { format } from 'date-fns';
+import { format, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,7 @@ import { cn } from '@/lib/utils';
 import type { Sale, Coupon } from '@/lib/types';
 import AppHeader from '@/components/app/AppHeader';
 import CountdownTimer from '@/components/app/CountdownTimer';
-import { CalendarIcon, LogIn, PlusCircle, Search, Ticket, User, VerifiedIcon } from 'lucide-react';
+import { CalendarIcon, LogIn, PlusCircle, Search, Ticket, User, VerifiedIcon, AlertTriangle } from 'lucide-react';
 import { getFromStorage, addToStorage, getObjectFromStorage } from '@/lib/storage';
 import { CAMPAIGN_END_DATE, COUPON_VALUE_THRESHOLD } from '@/lib/config';
 import type { CampaignConfig } from '@/app/admin/dashboard/page';
@@ -75,13 +76,20 @@ export default function SalesPage() {
     campaignEndDate: CAMPAIGN_END_DATE,
   });
   const [isClient, setIsClient] = useState(false);
+  const [isCampaignActive, setIsCampaignActive] = useState(true);
 
   useEffect(() => {
     setIsClient(true);
     const savedConfig = getObjectFromStorage<CampaignConfig>('supersorteios_config');
+    let activeConfig = {
+      couponValueThreshold: COUPON_VALUE_THRESHOLD,
+      campaignEndDate: CAMPAIGN_END_DATE,
+    };
     if (savedConfig) {
-      setCampaignConfig(savedConfig);
+      activeConfig = savedConfig;
     }
+    setCampaignConfig(activeConfig);
+    setIsCampaignActive(!isAfter(new Date(), new Date(activeConfig.campaignEndDate)));
     setAllSales(getFromStorage<Sale>('supersorteios_sales'));
   }, []);
 
@@ -125,6 +133,26 @@ export default function SalesPage() {
   };
 
   function onSaleSubmit(data: z.infer<typeof saleSchema>) {
+    // 1. Check if campaign is active
+    if (!isCampaignActive) {
+      toast({
+        variant: "destructive",
+        title: "Campanha encerrada",
+        description: "Não é possível registrar novas vendas.",
+      });
+      return;
+    }
+
+    // 2. Check if value is sufficient
+    if (data.value < campaignConfig.couponValueThreshold) {
+      toast({
+          variant: "destructive",
+          title: "Valor Insuficiente",
+          description: `O valor da venda deve ser de pelo menos R$ ${campaignConfig.couponValueThreshold.toFixed(2)} para registrar.`,
+      });
+      return;
+    }
+
     const saleId = `SALE-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
     const sale: Sale = { ...data, id: saleId, employeeId: data.cpf };
 
@@ -158,6 +186,7 @@ export default function SalesPage() {
             action: <div className="p-2 bg-green-500 rounded-full"><VerifiedIcon className="text-white" /></div>
         });
     } else {
+        // This case should theoretically not be reached due to the check above, but it's good for safety.
         toast({
             title: "Venda Registrada",
             description: `A venda foi registrada, mas o valor não foi suficiente para gerar um cupom (mínimo R$ ${campaignConfig.couponValueThreshold}).`,
@@ -212,6 +241,13 @@ export default function SalesPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {!isCampaignActive ? (
+                      <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed rounded-lg bg-muted/50">
+                        <AlertTriangle className="w-12 h-12 text-destructive" />
+                        <h3 className="text-xl font-bold">Campanha Encerrada</h3>
+                        <p className="text-muted-foreground">O período para registrar novas vendas terminou. Não é mais possível gerar cupons.</p>
+                      </div>
+                  ) : (
                   <Form {...saleForm}>
                     <form onSubmit={saleForm.handleSubmit(onSaleSubmit)} className="space-y-6">
                       <FormField
@@ -343,6 +379,7 @@ export default function SalesPage() {
                       </Button>
                     </form>
                   </Form>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -396,7 +433,7 @@ export default function SalesPage() {
                                 {coupon.sale && (
                                     <div className="text-xs text-muted-foreground flex justify-between items-center pl-9">
                                         <span>Valor: <span className="font-medium text-foreground">R$ {coupon.sale.value.toFixed(2)}</span></span>
-                                        <span>Data: <span className="font-medium text-foreground">{format(new Date(coupon.sale.date), 'dd/MM/yy')}</span></span>
+                                        <span>Data: <span className="font-medium text-foreground">{format(new Date(coupon.sale.date), 'dd/MM/yy', { locale: ptBR })}</span></span>
                                     </div>
                                 )}
                                </motion.div>
@@ -417,3 +454,5 @@ export default function SalesPage() {
     </div>
   );
 }
+
+    
