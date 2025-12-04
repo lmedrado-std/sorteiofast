@@ -88,6 +88,12 @@ export default function SalesPage() {
     if (savedConfig) {
       activeConfig = savedConfig;
     }
+
+    console.log('[CONFIG] campaignEndDate bruto:', activeConfig.campaignEndDate);
+    console.log('[CONFIG] new Date(campaignEndDate):', new Date(activeConfig.campaignEndDate));
+    console.log('[CONFIG] agora:', new Date());
+    console.log('[CONFIG] isCampaignActive:', isCampaignStillActive(activeConfig.campaignEndDate));
+
     setCampaignConfig(activeConfig);
     setIsCampaignActive(isCampaignStillActive(activeConfig.campaignEndDate));
     setAllSales(getFromStorage<Sale>('supersorteios_sales'));
@@ -481,5 +487,3 @@ export default function SalesPage() {
     </div>
   );
 }
-
-    
