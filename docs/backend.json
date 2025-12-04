@@ -1,0 +1,258 @@
+{
+  "entities": {
+    "Employee": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Employee",
+      "type": "object",
+      "description": "Represents an employee of Supermoda.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the employee."
+        },
+        "name": {
+          "type": "string",
+          "description": "The employee's full name."
+        },
+        "registrationNumber": {
+          "type": "string",
+          "description": "The employee's registration number."
+        },
+        "email": {
+          "type": "string",
+          "description": "The employee's email address.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "registrationNumber",
+        "email"
+      ]
+    },
+    "Sale": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Sale",
+      "type": "object",
+      "description": "Represents a sale made by an employee.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the sale."
+        },
+        "employeeId": {
+          "type": "string",
+          "description": "Reference to the Employee who made the sale. (Relationship: Employee 1:N Sale)"
+        },
+        "purchaseNumber": {
+          "type": "string",
+          "description": "The purchase number associated with the sale."
+        },
+        "value": {
+          "type": "number",
+          "description": "The value of the sale."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the sale.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "employeeId",
+        "purchaseNumber",
+        "value",
+        "date"
+      ]
+    },
+    "Coupon": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coupon",
+      "type": "object",
+      "description": "Represents a coupon generated based on sales.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the coupon."
+        },
+        "employeeId": {
+          "type": "string",
+          "description": "Reference to the Employee who earned the coupon. (Relationship: Employee 1:N Coupon)"
+        },
+        "saleId": {
+          "type": "string",
+          "description": "Reference to the Sale that generated the coupon. (Relationship: Sale 1:N Coupon)"
+        },
+        "couponCode": {
+          "type": "string",
+          "description": "The unique code for the coupon."
+        },
+        "generationDate": {
+          "type": "string",
+          "description": "The date the coupon was generated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "employeeId",
+        "saleId",
+        "couponCode",
+        "generationDate"
+      ]
+    },
+    "Admin": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Admin",
+      "type": "object",
+      "description": "Represents an administrator of the Supermoda Coupons application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the admin."
+        },
+        "username": {
+          "type": "string",
+          "description": "The admin's username."
+        },
+        "email": {
+          "type": "string",
+          "description": "The admin's email address.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "email"
+      ]
+    },
+    "SalesPromotion": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SalesPromotion",
+      "type": "object",
+      "description": "Represents a sales promotion with a defined end date.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the sales promotion."
+        },
+        "endDate": {
+          "type": "string",
+          "description": "The end date of the sales promotion.",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string",
+          "description": "Brief description of the sales promotion."
+        }
+      },
+      "required": [
+        "id",
+        "endDate",
+        "description"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/employees/{employeeId}",
+        "definition": {
+          "entityName": "Employee",
+          "schema": {
+            "$ref": "#/backend/entities/Employee"
+          },
+          "description": "Stores employee profile data.  Employee ID is used as document ID.",
+          "params": [
+            {
+              "name": "employeeId",
+              "description": "The unique identifier of the employee."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/employees/{employeeId}/sales/{saleId}",
+        "definition": {
+          "entityName": "Sale",
+          "schema": {
+            "$ref": "#/backend/entities/Sale"
+          },
+          "description": "Stores sales records for each employee. Includes denormalized 'employeeId' for authorization independence.",
+          "params": [
+            {
+              "name": "employeeId",
+              "description": "The unique identifier of the employee."
+            },
+            {
+              "name": "saleId",
+              "description": "The unique identifier of the sale."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/employees/{employeeId}/coupons/{couponId}",
+        "definition": {
+          "entityName": "Coupon",
+          "schema": {
+            "$ref": "#/backend/entities/Coupon"
+          },
+          "description": "Stores coupons generated for each employee. Includes denormalized 'employeeId' for authorization independence.",
+          "params": [
+            {
+              "name": "employeeId",
+              "description": "The unique identifier of the employee."
+            },
+            {
+              "name": "couponId",
+              "description": "The unique identifier of the coupon."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{uid}",
+        "definition": {
+          "entityName": "Admin",
+          "schema": {
+            "$ref": "#/backend/entities/Admin"
+          },
+          "description": "Documents in this collection indicate admin privileges. Existence of a document with a UID grants admin role.",
+          "params": [
+            {
+              "name": "uid",
+              "description": "The unique identifier of the user (admin)."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/salesPromotions/{salesPromotionId}",
+        "definition": {
+          "entityName": "SalesPromotion",
+          "schema": {
+            "$ref": "#/backend/entities/SalesPromotion"
+          },
+          "description": "Stores information about active sales promotions, including the end date.",
+          "params": [
+            {
+              "name": "salesPromotionId",
+              "description": "The unique identifier of the sales promotion."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the Supermoda Coupons application, focusing on employee sales tracking, coupon generation, and admin management. It prioritizes Authorization Independence by denormalizing relevant data where necessary. The structure is segregated to ensure that collections have a homogeneous security posture, simplifying security rules and enhancing maintainability. Path-based ownership is used where applicable to secure user-specific data. The admin role is managed via a dedicated collection for simplicity. \n\n**Authorization Independence (Denormalization):** The `sales` subcollection under each employee denormalizes the `employeeId` for authorization purposes, ensuring that we can query sales specific to an employee without needing to perform a `get()` on the employee document itself. Similarly, the `coupons` subcollection under each employee includes the `employeeId`. This approach enables secure and efficient list operations and atomic operations.\n\n**QAPs (Rules are not Filters):** The structure is segregated to easily support list operations with security rules. For example, listing sales are restricted to the employee who owns the sales data. Admin access to all coupons is granted via a dedicated `/roles_admin/{uid}` collection.\n\n**Structure Overview:**\n\n*   `/employees/{employeeId}`: Stores employee profile data.  Employee ID is used as document ID.\n*   `/employees/{employeeId}/sales/{saleId}`: Stores sales records for each employee. Employee ID is denormalized within each sale document for authorization independence.\n*   `/employees/{employeeId}/coupons/{couponId}`: Stores coupons generated for each employee. Employee ID is denormalized within each coupon document for authorization independence.\n*   `/roles_admin/{uid}`: Documents in this collection indicate admin privileges based on user ID."
+  }
+}

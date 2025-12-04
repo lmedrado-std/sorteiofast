@@ -1,0 +1,178 @@
+/**
+ * Core Philosophy: This ruleset implements a dual-access security model for the Supermoda Coupons application.
+ * It combines a strict user-ownership model for employees with a global role-based model for administrators.
+ * Employees have full control over their own data, while administrators have system-wide read and write privileges.
+ * The default security posture is deny-all, granting permissions explicitly.
+ *
+ * Data Structure:
+ * - /employees/{employeeId}: The root document for each employee, where {employeeId} is the user's auth UID.
+ * - /employees/{employeeId}/sales/{saleId}: A subcollection containing sales records owned by the parent employee.
+ * - /employees/{employeeId}/coupons/{couponId}: A subcollection containing coupons earned by the parent employee.
+ * - /roles_admin/{uid}: A top-level collection where the existence of a document grants a user administrator privileges.
+ * - /salesPromotions/{salesPromotionId}: A top-level collection for sales promotions, readable by all employees but managed only by admins.
+ *
+ * Key Security Decisions:
+ * - Employee data is strictly segregated. An employee can only access documents within their own data tree (e.g., /employees/{their_own_uid}/...).
+ * - Administrators are defined by the existence of their UID in the /roles_admin collection and have unrestricted access to all data.
+ * - Listing the top-level /employees collection is explicitly forbidden to protect employee privacy.
+ * - Sales promotions are readable by any authenticated user but are managed exclusively by administrators.
+ * - Data integrity is maintained by ensuring that denormalized IDs (like 'employeeId' in sales and coupons) match the document path upon creation and are immutable upon update.
+ *
+ * Denormalization for Authorization:
+ * To ensure fast and secure access, the `sales` and `coupons` documents contain a denormalized `employeeId` field.
+ * This allows security rules to authorize access without needing to read the parent employee document, which is more performant and cost-effective.
+ *
+ * Structural Segregation:
+ * The data model is well-segregated, with user-specific data nested under a user-owned path and global data (promotions, admin roles) in separate top-level collections.
+ * This structure simplifies rule logic and aligns with Firestore's query capabilities.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --------------------------------
+    // Helper Functions
+    // --------------------------------
+
+    /**
+     * Checks if a user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the requesting user has an admin role.
+     * Admin status is determined by the existence of a document in the /roles_admin collection
+     * with an ID matching the user's UID.
+     */
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /**
+     * Checks if the requesting user is the owner of a document, based on the provided userId.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    /**
+     * Checks if the requesting user is either the owner of the document or an admin.
+     */
+    function isOwnerOrAdmin(userId) {
+      return isOwner(userId) || isAdmin();
+    }
+
+    /**
+     * Checks for ownership or admin role on an *existing* document.
+     * Ensures that update/delete operations target documents that actually exist.
+     */
+    function isExistingOwnerOrAdmin(userId) {
+      return isOwnerOrAdmin(userId) && resource != null;
+    }
+    
+    /**
+     * Validates that the employee document being created has an 'id' field
+     * that matches the document ID in the path. This enforces relational integrity.
+     */
+    function newEmployeeDataIsValid(employeeId) {
+      return request.resource.data.id == employeeId;
+    }
+
+    /**
+     * Validates that the employee's 'id' field is immutable during an update.
+     */
+    function existingEmployeeDataIsValid() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * Validates that a new subcollection document (sale or coupon) has an 'employeeId' field
+     * that correctly links it to its parent employee document path.
+     */
+    function newSubcollectionDataIsValid(employeeId) {
+      return request.resource.data.employeeId == employeeId;
+    }
+
+    /**
+     * Validates that the 'employeeId' field is immutable during an update
+     * for subcollection documents (sales, coupons).
+     */
+    function existingSubcollectionDataIsValid() {
+      return request.resource.data.employeeId == resource.data.employeeId;
+    }
+
+
+    // --------------------------------
+    // Collection Rules
+    // --------------------------------
+
+    /**
+     * @description Manages employee profile documents. Access is restricted to the employee owner or an admin.
+     * @path /employees/{employeeId}
+     * @allow (get) An employee requests their own profile: `auth.uid == employeeId`.
+     * @deny (list) Any user, including an admin, tries to list all employees.
+     * @principle Restricts access to a user's own data tree and prevents enumeration of all users.
+     */
+    match /employees/{employeeId} {
+      allow get: if isOwnerOrAdmin(employeeId);
+      allow list: if false;
+      allow create: if isOwnerOrAdmin(employeeId) && newEmployeeDataIsValid(employeeId);
+      allow update: if isExistingOwnerOrAdmin(employeeId) && existingEmployeeDataIsValid();
+      allow delete: if isExistingOwnerOrAdmin(employeeId);
+
+      /**
+       * @description Manages sales records for a specific employee. Access is restricted to the employee owner or an admin.
+       * @path /employees/{employeeId}/sales/{saleId}
+       * @allow (create) An employee adds a new sale record under their own profile.
+       * @deny (get) An employee tries to read a sale record from another employee's profile.
+       * @principle Enforces inherited ownership from the parent document path.
+       */
+      match /sales/{saleId} {
+        allow get, list: if isOwnerOrAdmin(employeeId);
+        allow create: if isOwnerOrAdmin(employeeId) && newSubcollectionDataIsValid(employeeId);
+        allow update: if isExistingOwnerOrAdmin(employeeId) && existingSubcollectionDataIsValid();
+        allow delete: if isExistingOwnerOrAdmin(employeeId);
+      }
+
+      /**
+       * @description Manages coupon records for a specific employee. Access is restricted to the employee owner or an admin.
+       * @path /employees/{employeeId}/coupons/{couponId}
+       * @allow (list) An employee lists all coupons they have earned.
+       * @deny (update) An employee tries to modify a coupon belonging to another employee.
+       * @principle Enforces inherited ownership from the parent document path.
+       */
+      match /coupons/{couponId} {
+        allow get, list: if isOwnerOrAdmin(employeeId);
+        allow create: if isOwnerOrAdmin(employeeId) && newSubcollectionDataIsValid(employeeId);
+        allow update: if isExistingOwnerOrAdmin(employeeId) && existingSubcollectionDataIsValid();
+        allow delete: if isExistingOwnerOrAdmin(employeeId);
+      }
+    }
+
+    /**
+     * @description Manages administrator roles. Only existing admins can read or modify this collection.
+     * @path /roles_admin/{uid}
+     * @allow (create) An existing admin grants admin privileges to a new user.
+     * @deny (delete) A non-admin user attempts to revoke their own or someone else's admin role.
+     * @principle Secures role management by restricting it to users who already hold the required role.
+     */
+    match /roles_admin/{uid} {
+      allow get, list: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Manages sales promotions. Readable by any authenticated user but writable only by admins.
+     * @path /salesPromotions/{salesPromotionId}
+     * @allow (get) Any authenticated employee reads the details of a sales promotion.
+     * @deny (create) A non-admin employee attempts to create a new sales promotion.
+     * @principle Provides public read access for application content while securing write operations for administrators.
+     */
+    match /salesPromotions/{salesPromotionId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}
