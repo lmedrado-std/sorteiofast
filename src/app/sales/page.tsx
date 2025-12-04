@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { AnimatePresence, motion } from 'framer-motion';
-import { format, isAfter } from 'date-fns';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, isCampaignActive as isCampaignStillActive } from '@/lib/utils';
 import type { Sale, Coupon } from '@/lib/types';
 import AppHeader from '@/components/app/AppHeader';
 import CountdownTimer from '@/components/app/CountdownTimer';
@@ -89,7 +89,7 @@ export default function SalesPage() {
       activeConfig = savedConfig;
     }
     setCampaignConfig(activeConfig);
-    setIsCampaignActive(!isAfter(new Date(), new Date(activeConfig.campaignEndDate)));
+    setIsCampaignActive(isCampaignStillActive(activeConfig.campaignEndDate));
     setAllSales(getFromStorage<Sale>('supersorteios_sales'));
   }, []);
 

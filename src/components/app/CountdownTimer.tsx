@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { TimerIcon } from 'lucide-react';
+import { isCampaignActive } from '@/lib/utils';
 
 interface TimeLeft {
   days?: number;
@@ -14,10 +15,9 @@ interface TimeLeft {
 
 export default function CountdownTimer({ targetDate }: { targetDate: string }) {
   const calculateTimeLeft = (): TimeLeft => {
-    // Garante que a string de data seja tratada como UTC, adicionando 'Z' se não estiver presente.
-    // Isso evita problemas de fuso horário em que o navegador pode interpretar a data como local.
-    const utcTargetDate = targetDate.endsWith('Z') ? targetDate : `${targetDate}Z`;
-    const difference = +new Date(utcTargetDate) - +new Date();
+    // Treat the string as UTC to avoid timezone shifts.
+    const utcTargetDate = new Date(targetDate.endsWith('Z') ? targetDate : `${targetDate}Z`);
+    const difference = +utcTargetDate - +new Date();
     let timeLeft: TimeLeft = {};
 
     if (difference > 0) {
@@ -36,20 +36,25 @@ export default function CountdownTimer({ targetDate }: { targetDate: string }) {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    // Garante que o código só rode no cliente para evitar hydration mismatch
+    // This ensures the code only runs on the client to prevent hydration mismatch.
     setIsClient(true);
+    // Set the initial time left immediately on mount.
     setTimeLeft(calculateTimeLeft());
-
+    
+    // Then, set up an interval to update it every second.
     const timer = setInterval(() => {
       setTimeLeft(calculateTimeLeft());
     }, 1000);
 
+    // Clean up the interval when the component unmounts.
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetDate]);
 
+  // Use the centralized function to determine if the campaign is active.
+  const campaignIsActive = isCampaignActive(targetDate);
 
-  const timerComponents = Object.keys(timeLeft).length ? (
+  const timerComponents = campaignIsActive && Object.keys(timeLeft).length ? (
     Object.entries(timeLeft).map(([interval, value]) => (
       <div key={interval} className="flex flex-col items-center">
         <span className="text-4xl md:text-6xl font-bold text-primary tracking-tighter">
@@ -61,7 +66,7 @@ export default function CountdownTimer({ targetDate }: { targetDate: string }) {
   ) : (
     <div className="text-2xl font-bold text-primary">Campanha Encerrada!</div>
   );
-
+  
   if (!isClient) {
     return (
         <Card className="w-full shadow-lg">
@@ -85,7 +90,7 @@ export default function CountdownTimer({ targetDate }: { targetDate: string }) {
       <CardHeader className="text-center">
         <CardTitle className="flex items-center justify-center gap-2 text-xl font-headline">
           <TimerIcon className="w-5 h-5 text-accent" />
-          Fim da Campanha em
+          {campaignIsActive ? "Fim da Campanha em" : "Status da Campanha"}
         </CardTitle>
       </CardHeader>
       <CardContent>
