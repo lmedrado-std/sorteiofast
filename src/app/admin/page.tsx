@@ -9,7 +9,12 @@ import { Badge } from '@/components/ui/badge';
 import type { Coupon, Sale } from '@/lib/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ShieldCheck, Ticket } from 'lucide-react';
+import { ShieldCheck, Ticket, KeyRound, LogIn } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+
+const ADMIN_PASSWORD = "admin"; // Senha para acesso ao painel
 
 const getFromStorage = <T>(key: string): T[] => {
   if (typeof window === 'undefined') return [];
@@ -23,6 +28,9 @@ const getFromStorage = <T>(key: string): T[] => {
 };
 
 export default function AdminPage() {
+  const { toast } = useToast();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
   const [allCoupons, setAllCoupons] = useState<Coupon[]>([]);
   const [allSales, setAllSales] = useState<Sale[]>([]);
 
@@ -31,10 +39,63 @@ export default function AdminPage() {
     // For this demo, we are reading from localStorage.
     setAllCoupons(getFromStorage<Coupon>('supersorteios_coupons'));
     setAllSales(getFromStorage<Sale>('supersorteios_sales'));
-  }, []);
+  }, [isAuthenticated]); // Re-fetch if authenticated
 
   const getSaleForCoupon = (coupon: Coupon) => {
     return allSales.find(sale => sale.id === coupon.saleId);
+  }
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === ADMIN_PASSWORD) {
+      setIsAuthenticated(true);
+      toast({
+        title: 'Acesso concedido',
+        description: 'Bem-vindo ao painel do administrador.',
+      });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Acesso negado',
+        description: 'A senha inserida está incorreta.',
+      });
+      setPassword('');
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <AppHeader />
+        <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
+          <Card className="max-w-md w-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                <KeyRound className="w-6 h-6" />
+                Acesso Restrito
+              </CardTitle>
+              <CardDescription>
+                Por favor, insira a senha para acessar o painel do administrador.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="********"
+                />
+                <Button type="submit" className="w-full">
+                  <LogIn className="mr-2" />
+                  Entrar
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
   }
 
   return (
