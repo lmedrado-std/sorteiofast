@@ -1,10 +1,11 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { TimerIcon } from 'lucide-react';
+import { useState, useEffect, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { TimerIcon } from "lucide-react";
 import { isCampaignActive } from '@/lib/utils';
+
 
 interface TimeLeft {
   days?: number;
@@ -54,18 +55,12 @@ export default function CountdownTimer({ targetDate }: { targetDate: string }) {
   // Use the centralized function to determine if the campaign is active.
   const campaignIsActive = isCampaignActive(targetDate);
 
-  const timerComponents = campaignIsActive && Object.keys(timeLeft).length ? (
-    Object.entries(timeLeft).map(([interval, value]) => (
-      <div key={interval} className="flex flex-col items-center">
-        <span className="text-4xl md:text-6xl font-bold text-primary tracking-tighter">
-          {String(value).padStart(2, '0')}
-        </span>
-        <span className="text-xs uppercase text-foreground/70">{interval}</span>
-      </div>
-    ))
-  ) : (
-    <div className="text-2xl font-bold text-primary">Campanha Encerrada!</div>
-  );
+  const unitsLabel: Record<keyof Required<TimeLeft>, string> = {
+    days: "Dias",
+    hours: "Horas",
+    minutes: "Minutos",
+    seconds: "Segundos",
+  };
   
   if (!isClient) {
     return (
@@ -73,12 +68,12 @@ export default function CountdownTimer({ targetDate }: { targetDate: string }) {
             <CardHeader className="text-center">
                 <CardTitle className="flex items-center justify-center gap-2 text-xl font-headline">
                 <TimerIcon className="w-5 h-5 text-accent" />
-                Fim da Campanha em
+                Status da Campanha
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="flex justify-around gap-4 h-[76px] items-center">
-                    <p>Carregando...</p>
+                <div className="flex justify-center items-center h-[76px]">
+                    <p className="text-sm text-foreground/70">Carregando contador...</p>
                 </div>
             </CardContent>
         </Card>
@@ -94,9 +89,31 @@ export default function CountdownTimer({ targetDate }: { targetDate: string }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex justify-around gap-4">
-          {timerComponents}
-        </div>
+        {campaignIsActive && Object.keys(timeLeft).length > 0 ? (
+          <div className="grid grid-cols-4 gap-2 md:gap-4">
+            {(Object.keys(unitsLabel) as (keyof TimeLeft)[]).map(
+              (unit) => (
+                <div
+                  key={unit}
+                  className="flex flex-col items-center rounded-xl bg-muted/60 px-2 py-2 md:px-3 md:py-3"
+                >
+                  <span className="text-2xl md:text-4xl font-bold text-primary leading-none tracking-tight">
+                    {String(timeLeft[unit] ?? 0).padStart(2, "0")}
+                  </span>
+                  <span className="mt-1 text-[10px] md:text-xs uppercase tracking-wide text-foreground/70">
+                    {unitsLabel[unit]}
+                  </span>
+                </div>
+              )
+            )}
+          </div>
+        ) : (
+          <div className="flex h-[76px] items-center justify-center">
+            <p className="text-base md:text-lg font-semibold text-primary">
+              Campanha Encerrada!
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
