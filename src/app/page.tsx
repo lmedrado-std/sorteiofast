@@ -49,7 +49,7 @@ export default function Home() {
                 <p className="text-foreground/80 flex-grow">
                   Acesse para registrar suas vendas, acompanhar seus cupons e ver sua performance na campanha.
                 </p>
-                <Button asChild className="mt-auto w-full" variant="secondary">
+                <Button asChild className="mt-auto w-full">
                   <Link href="/sales">
                     Entrar Agora <ArrowRight className="ml-2" />
                   </Link>
@@ -79,7 +79,7 @@ export default function Home() {
                 <p className="text-foreground/80 flex-grow">
                   Gerencie os cupons, visualize os dados da campanha e realize o sorteio dos prêmios.
                 </p>
-                <Button asChild className="mt-auto w-full" variant="secondary">
+                <Button asChild className="mt-auto w-full">
                   <Link href="/admin">
                     Acessar Painel <ArrowRight className="ml-2" />
                   </Link>
