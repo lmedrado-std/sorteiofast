@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Settings, Save } from 'lucide-react';
 import type { CampaignConfig } from '@/app/admin/dashboard/page';
-import { format, parse } from 'date-fns';
+import { format } from 'date-fns';
 
 const settingsSchema = z.object({
   couponValueThreshold: z.coerce.number().int().positive('O valor deve ser um número inteiro positivo.'),
@@ -32,14 +32,10 @@ export default function CampaignSettings({ currentConfig, onSave }: CampaignSett
   });
 
   const onSubmit = (data: z.infer<typeof settingsSchema>) => {
-    // Converte a data local do input para um objeto Date
-    const localDate = parse(data.campaignEndDate, "yyyy-MM-dd'T'HH:mm", new Date());
-    // Formata a data para uma string ISO 8601 completa (YYYY-MM-DDTHH:mm:ssZ)
-    const isoDateString = localDate.toISOString();
-    
+    // Salva a data exatamente como veio do input (formato local)
     onSave({
         couponValueThreshold: data.couponValueThreshold,
-        campaignEndDate: isoDateString
+        campaignEndDate: data.campaignEndDate
     });
   };
 
