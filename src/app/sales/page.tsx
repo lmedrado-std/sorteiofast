@@ -73,7 +73,7 @@ export default function SalesPage() {
   const [allSales, setAllSales] = useState<Sale[]>([]);
   const [campaignConfig, setCampaignConfig] = useState<CampaignConfig>({
     couponValueThreshold: COUPON_VALUE_THRESHOLD,
-    campaignEndDate: CAMPAIGN_END_DATE,
+    campaignEndDate: new Date(CAMPAIGN_END_DATE),
   });
   const [isClient, setIsClient] = useState(false);
   const [isCampaignActive, setIsCampaignActive] = useState(true);
@@ -83,10 +83,13 @@ export default function SalesPage() {
     const savedConfig = getObjectFromStorage<CampaignConfig>('supersorteios_config');
     let activeConfig = {
       couponValueThreshold: COUPON_VALUE_THRESHOLD,
-      campaignEndDate: CAMPAIGN_END_DATE,
+      campaignEndDate: new Date(CAMPAIGN_END_DATE),
     };
     if (savedConfig) {
-      activeConfig = savedConfig;
+      activeConfig = {
+        ...savedConfig,
+        campaignEndDate: new Date(savedConfig.campaignEndDate),
+      };
     }
 
     setCampaignConfig(activeConfig);

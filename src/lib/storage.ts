@@ -1,4 +1,5 @@
 
+
 export const getFromStorage = <T>(key: string): T[] => {
   if (typeof window === 'undefined') return [];
   const data = localStorage.getItem(key);
@@ -57,7 +58,19 @@ export const getObjectFromStorage = <T>(key: string): T | null => {
   const data = localStorage.getItem(key);
   if (!data) return null;
   try {
-    return JSON.parse(data) as T;
+    const item = JSON.parse(data);
+    // Revive dates in the object
+    if (item && typeof item === 'object') {
+      for (const prop in item) {
+        if (Object.prototype.hasOwnProperty.call(item, prop)) {
+          // A simple check to see if a string looks like a date
+          if (typeof item[prop] === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(item[prop])) {
+            item[prop] = new Date(item[prop]);
+          }
+        }
+      }
+    }
+    return item as T;
   } catch (error) {
     console.error(`Error parsing object from localStorage for key "${key}":`, error);
     return null;
@@ -68,7 +81,8 @@ export const saveObjectToStorage = <T>(key: string, data: T): void => {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(key, JSON.stringify(data));
-  } catch (error) {
+  } catch (error)
+    {
     console.error(`Error saving object to localStorage for key "${key}":`, error);
   }
 };

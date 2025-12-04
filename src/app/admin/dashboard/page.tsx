@@ -26,7 +26,7 @@ import { CAMPAIGN_END_DATE, COUPON_VALUE_THRESHOLD } from '@/lib/config';
 
 export type CampaignConfig = {
   couponValueThreshold: number;
-  campaignEndDate: string;
+  campaignEndDate: Date;
 };
 
 export default function AdminDashboardPage() {
@@ -36,7 +36,7 @@ export default function AdminDashboardPage() {
   const [winnersHistory, setWinnersHistory] = useState<Winner[][]>([]);
   const [campaignConfig, setCampaignConfig] = useState<CampaignConfig>({
     couponValueThreshold: COUPON_VALUE_THRESHOLD,
-    campaignEndDate: CAMPAIGN_END_DATE,
+    campaignEndDate: new Date(CAMPAIGN_END_DATE),
   });
   const [isClient, setIsClient] = useState(false);
 
@@ -47,7 +47,11 @@ export default function AdminDashboardPage() {
     setWinnersHistory(getFromStorage<Winner[]>('supersorteios_winners_history'));
     const savedConfig = getObjectFromStorage<CampaignConfig>('supersorteios_config');
     if (savedConfig) {
-      setCampaignConfig(savedConfig);
+      // Ensure date is a Date object
+      setCampaignConfig({
+        ...savedConfig,
+        campaignEndDate: new Date(savedConfig.campaignEndDate),
+      });
     }
   }, []);
 

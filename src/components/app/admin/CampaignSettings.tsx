@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Settings, Save } from 'lucide-react';
 import type { CampaignConfig } from '@/app/admin/dashboard/page';
-import { format } from 'date-fns';
 
 const settingsSchema = z.object({
   couponValueThreshold: z.coerce.number().int().positive('O valor deve ser um número inteiro positivo.'),
@@ -22,20 +21,32 @@ interface CampaignSettingsProps {
   onSave: (newConfig: CampaignConfig) => void;
 }
 
+// Helper to format date to "yyyy-MM-ddTHH:mm" for the input
+const formatDateForInput = (date: Date) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 export default function CampaignSettings({ currentConfig, onSave }: CampaignSettingsProps) {
   const form = useForm<z.infer<typeof settingsSchema>>({
     resolver: zodResolver(settingsSchema),
     values: {
-      ...currentConfig,
-      campaignEndDate: format(new Date(currentConfig.campaignEndDate), "yyyy-MM-dd'T'HH:mm"),
+      couponValueThreshold: currentConfig.couponValueThreshold,
+      campaignEndDate: formatDateForInput(currentConfig.campaignEndDate),
     },
+    // Re-initialize form when currentConfig changes
+    enableReinitialize: true,
   });
 
   const onSubmit = (data: z.infer<typeof settingsSchema>) => {
-    // Salva a data exatamente como veio do input (formato local)
     onSave({
         couponValueThreshold: data.couponValueThreshold,
-        campaignEndDate: data.campaignEndDate
+        campaignEndDate: new Date(data.campaignEndDate), // Convert back to Date object on save
     });
   };
 

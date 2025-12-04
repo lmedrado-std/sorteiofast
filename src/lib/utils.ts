@@ -1,4 +1,5 @@
 
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -8,15 +9,16 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Verifica se a campanha está ativa comparando a data atual
- * com a data fim configurada, tratando-a como data local.
+ * com a data fim configurada.
  */
-export function isCampaignActive(campaignEndDate: string): boolean {
+export function isCampaignActive(campaignEndDate: string | Date): boolean {
   if (!campaignEndDate) return false;
 
-  // Interpreta a string de data como sendo do fuso horário local.
-  const target = new Date(campaignEndDate);
-  if (Number.isNaN(target.getTime())) return false;
+  const targetDate = typeof campaignEndDate === 'string' ? new Date(campaignEndDate) : campaignEndDate;
 
-  // Compara com a data e hora locais atuais.
-  return new Date() < target;
+  if (Number.isNaN(targetDate.getTime())) {
+    return false;
+  }
+
+  return new Date() < targetDate;
 }
