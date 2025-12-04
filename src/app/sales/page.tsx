@@ -235,7 +235,30 @@ export default function SalesPage() {
                           <FormItem>
                             <FormLabel>Valor da Venda (R$)</FormLabel>
                             <FormControl>
-                              <Input type="number" step="0.01" placeholder="Ex: 1050.75" {...field} />
+                              <Input
+                                type="text"
+                                inputMode="decimal"
+                                placeholder="Ex: 1050,75"
+                                {...field}
+                                onBlur={(e) => {
+                                   field.onBlur();
+                                   const value = parseFloat(e.target.value.replace(',', '.')) || 0;
+                                   saleForm.setValue('value', value, { shouldValidate: true });
+                                 }}
+                                 onChange={(e) => {
+                                   const value = e.target.value;
+                                   // Allow only numbers and one comma
+                                   if (/^[\d,]*$/.test(value) && (value.match(/,/g) || []).length <= 1) {
+                                      field.onChange(value);
+                                   }
+                                 }}
+                                 // Display the formatted value
+                                 value={
+                                    typeof field.value === 'number' && field.value > 0
+                                      ? String(field.value).replace('.', ',')
+                                      : field.value === 0 ? '' : field.value
+                                  }
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
