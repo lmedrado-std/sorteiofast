@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -64,11 +63,13 @@ const couponQuerySchema = z.object({
   cpf: z.string().min(11, 'CPF deve ter 11 dígitos.').max(11, 'CPF deve ter 11 dígitos.'),
 });
 
+type CouponWithSaleData = Coupon & { sale?: Sale };
 
 export default function SalesPage() {
   const { toast } = useToast();
   const [viewingCpf, setViewingCpf] = useState<string | null>(null);
-  const [myCoupons, setMyCoupons] = useState<Coupon[]>([]);
+  const [myCoupons, setMyCoupons] = useState<CouponWithSaleData[]>([]);
+  const [allSales, setAllSales] = useState<Sale[]>([]);
   const [campaignConfig, setCampaignConfig] = useState<CampaignConfig>({
     couponValueThreshold: COUPON_VALUE_THRESHOLD,
     campaignEndDate: CAMPAIGN_END_DATE,
@@ -81,6 +82,7 @@ export default function SalesPage() {
     if (savedConfig) {
       setCampaignConfig(savedConfig);
     }
+    setAllSales(getFromStorage<Sale>('supersorteios_sales'));
   }, []);
 
   const saleForm = useForm<z.infer<typeof saleSchema>>({
@@ -102,9 +104,20 @@ export default function SalesPage() {
 
   const onCouponQuerySubmit = (data: z.infer<typeof couponQuerySchema>) => {
     setViewingCpf(data.cpf);
+    const currentSales = getFromStorage<Sale>('supersorteios_sales');
     const allCoupons = getFromStorage<Coupon>('supersorteios_coupons');
+    
+    setAllSales(currentSales); // Update sales state as well
+
     const employeeCoupons = allCoupons.filter(coupon => coupon.employeeId === data.cpf);
-    setMyCoupons(employeeCoupons);
+    
+    const couponsWithSaleData: CouponWithSaleData[] = employeeCoupons.map(coupon => {
+      const sale = currentSales.find(s => s.id === coupon.saleId);
+      return { ...coupon, sale };
+    });
+
+    setMyCoupons(couponsWithSaleData);
+    
     toast({
       title: 'Busca Concluída',
       description: `${employeeCoupons.length} cupons encontrados para este CPF.`,
@@ -117,6 +130,10 @@ export default function SalesPage() {
 
     const couponCount = Math.floor(data.value / campaignConfig.couponValueThreshold);
     
+    addToStorage('supersorteios_sales', sale);
+    const updatedSales = [...allSales, sale];
+    setAllSales(updatedSales);
+    
     if (couponCount > 0) {
         const newCoupons: Coupon[] = Array.from({ length: couponCount }, () => ({
             id: `CUPOM-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
@@ -124,12 +141,15 @@ export default function SalesPage() {
             employeeId: data.cpf,
         }));
         
-        addToStorage('supersorteios_sales', sale);
         addToStorage('supersorteios_coupons', newCoupons);
 
         // If the user is viewing their own coupons, update the list
         if (viewingCpf === data.cpf) {
-          setMyCoupons(prev => [...prev, ...newCoupons]);
+          const newCouponsWithSaleData: CouponWithSaleData[] = newCoupons.map(coupon => ({
+            ...coupon,
+            sale
+          }));
+          setMyCoupons(prev => [...prev, ...newCouponsWithSaleData]);
         }
 
         toast({
@@ -138,7 +158,6 @@ export default function SalesPage() {
             action: <div className="p-2 bg-green-500 rounded-full"><VerifiedIcon className="text-white" /></div>
         });
     } else {
-        addToStorage('supersorteios_sales', sale);
         toast({
             title: "Venda Registrada",
             description: `A venda foi registrada, mas o valor não foi suficiente para gerar um cupom (mínimo R$ ${campaignConfig.couponValueThreshold}).`,
@@ -360,7 +379,7 @@ export default function SalesPage() {
                     <div>
                       <h3 className="mb-4 text-lg font-medium">Cupons para o CPF: <span className="font-bold text-primary">{viewingCpf}</span> ({myCoupons.length})</h3>
                        {myCoupons.length > 0 ? (
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <AnimatePresence>
                             {myCoupons.map((coupon, index) => (
                                <motion.div
@@ -368,10 +387,18 @@ export default function SalesPage() {
                                  initial={{ opacity: 0, y: 20 }}
                                  animate={{ opacity: 1, y: 0 }}
                                  transition={{ delay: index * 0.05 }}
-                                 className="bg-secondary/50 p-3 rounded-md flex items-center gap-3 border-l-4 border-primary"
+                                 className="bg-secondary/50 p-3 rounded-lg flex flex-col gap-2 border-l-4 border-primary"
                                >
-                                 <Ticket className="w-6 h-6 text-accent" />
-                                 <span className="font-mono text-sm font-semibold">{coupon.id}</span>
+                                <div className="flex items-center gap-3">
+                                  <Ticket className="w-6 h-6 text-accent flex-shrink-0" />
+                                  <span className="font-mono text-sm font-semibold flex-grow">{coupon.id}</span>
+                                </div>
+                                {coupon.sale && (
+                                    <div className="text-xs text-muted-foreground flex justify-between items-center pl-9">
+                                        <span>Valor: <span className="font-medium text-foreground">R$ {coupon.sale.value.toFixed(2)}</span></span>
+                                        <span>Data: <span className="font-medium text-foreground">{format(new Date(coupon.sale.date), 'dd/MM/yy')}</span></span>
+                                    </div>
+                                )}
                                </motion.div>
                             ))}
                             </AnimatePresence>
