@@ -1,5 +1,7 @@
 
 // src/lib/config.ts
+// Estes são os valores padrão. As configurações podem ser substituídas
+// dinamicamente pelo painel do administrador e salvas no localStorage.
 
 /**
  * O valor mínimo de venda para gerar um cupom.

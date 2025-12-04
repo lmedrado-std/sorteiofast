@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -44,8 +45,9 @@ import type { Sale, Coupon } from '@/lib/types';
 import AppHeader from '@/components/app/AppHeader';
 import CountdownTimer from '@/components/app/CountdownTimer';
 import { CalendarIcon, LogIn, PlusCircle, Search, Ticket, User, VerifiedIcon } from 'lucide-react';
-import { getFromStorage, addToStorage } from '@/lib/storage';
+import { getFromStorage, addToStorage, getObjectFromStorage } from '@/lib/storage';
 import { CAMPAIGN_END_DATE, COUPON_VALUE_THRESHOLD } from '@/lib/config';
+import type { CampaignConfig } from '@/app/admin/dashboard/page';
 
 
 const saleSchema = z.object({
@@ -67,6 +69,19 @@ export default function SalesPage() {
   const { toast } = useToast();
   const [viewingCpf, setViewingCpf] = useState<string | null>(null);
   const [myCoupons, setMyCoupons] = useState<Coupon[]>([]);
+  const [campaignConfig, setCampaignConfig] = useState<CampaignConfig>({
+    couponValueThreshold: COUPON_VALUE_THRESHOLD,
+    campaignEndDate: CAMPAIGN_END_DATE,
+  });
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    const savedConfig = getObjectFromStorage<CampaignConfig>('supersorteios_config');
+    if (savedConfig) {
+      setCampaignConfig(savedConfig);
+    }
+  }, []);
 
   const saleForm = useForm<z.infer<typeof saleSchema>>({
     resolver: zodResolver(saleSchema),
@@ -100,7 +115,7 @@ export default function SalesPage() {
     const saleId = `SALE-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
     const sale: Sale = { ...data, id: saleId, employeeId: data.cpf };
 
-    const couponCount = Math.floor(data.value / COUPON_VALUE_THRESHOLD);
+    const couponCount = Math.floor(data.value / campaignConfig.couponValueThreshold);
     
     if (couponCount > 0) {
         const newCoupons: Coupon[] = Array.from({ length: couponCount }, () => ({
@@ -126,7 +141,7 @@ export default function SalesPage() {
         addToStorage('supersorteios_sales', sale);
         toast({
             title: "Venda Registrada",
-            description: `A venda foi registrada, mas o valor não foi suficiente para gerar um cupom (mínimo R$ ${COUPON_VALUE_THRESHOLD}).`,
+            description: `A venda foi registrada, mas o valor não foi suficiente para gerar um cupom (mínimo R$ ${campaignConfig.couponValueThreshold}).`,
         });
     }
     
@@ -136,6 +151,10 @@ export default function SalesPage() {
       value: 0,
       date: new Date(),
     });
+  }
+
+  if (!isClient) {
+    return <div className="flex justify-center items-center h-screen"><p>Carregando...</p></div>;
   }
   
   return (
@@ -154,7 +173,7 @@ export default function SalesPage() {
             </CardHeader>
           </Card>
           
-          <CountdownTimer targetDate={CAMPAIGN_END_DATE} />
+          <CountdownTimer targetDate={campaignConfig.campaignEndDate} />
 
           <Tabs defaultValue="sales" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -170,7 +189,7 @@ export default function SalesPage() {
                 <CardHeader>
                   <CardTitle>Nova Venda</CardTitle>
                   <CardDescription>
-                    Preencha os dados da venda. Para cada R$ {COUPON_VALUE_THRESHOLD},00, um cupom será gerado.
+                    Preencha os dados da venda. Para cada R$ {campaignConfig.couponValueThreshold},00, um cupom será gerado.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -290,7 +309,7 @@ export default function SalesPage() {
                                   selected={field.value}
                                   onSelect={field.onChange}
                                   disabled={(date) =>
-                                    date > new Date() || date < new Date('2024-01-01')
+                                    date > new Date(campaignConfig.campaignEndDate) || date < new Date('2024-01-01')
                                   }
                                   initialFocus
                                 />

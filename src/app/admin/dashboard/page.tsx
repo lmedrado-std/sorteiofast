@@ -20,13 +20,24 @@ import RaffleSection from '@/components/app/RaffleSection';
 import CouponsList from '@/components/app/admin/CouponsList';
 import WinnersHistory from '@/components/app/admin/WinnersHistory';
 import type { Coupon, Sale, Winner } from '@/lib/types';
-import { getFromStorage, saveToStorage, clearFromStorage } from '@/lib/storage';
+import { getFromStorage, saveToStorage, clearFromStorage, getObjectFromStorage, saveObjectToStorage } from '@/lib/storage';
+import CampaignSettings from '@/components/app/admin/CampaignSettings';
+import { CAMPAIGN_END_DATE, COUPON_VALUE_THRESHOLD } from '@/lib/config';
+
+export type CampaignConfig = {
+  couponValueThreshold: number;
+  campaignEndDate: string;
+};
 
 export default function AdminDashboardPage() {
   const { toast } = useToast();
   const [allCoupons, setAllCoupons] = useState<Coupon[]>([]);
   const [allSales, setAllSales] = useState<Sale[]>([]);
   const [winnersHistory, setWinnersHistory] = useState<Winner[][]>([]);
+  const [campaignConfig, setCampaignConfig] = useState<CampaignConfig>({
+    couponValueThreshold: COUPON_VALUE_THRESHOLD,
+    campaignEndDate: CAMPAIGN_END_DATE,
+  });
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -34,6 +45,10 @@ export default function AdminDashboardPage() {
     setAllCoupons(getFromStorage<Coupon>('supersorteios_coupons'));
     setAllSales(getFromStorage<Sale>('supersorteios_sales'));
     setWinnersHistory(getFromStorage<Winner[]>('supersorteios_winners_history'));
+    const savedConfig = getObjectFromStorage<CampaignConfig>('supersorteios_config');
+    if (savedConfig) {
+      setCampaignConfig(savedConfig);
+    }
   }, []);
 
   const handleRaffleConducted = (newWinners: Winner[]) => {
@@ -60,6 +75,12 @@ export default function AdminDashboardPage() {
     clearFromStorage('supersorteios_winners_history');
     toast({ title: "Histórico de ganhadores foi limpo!", variant: "destructive" });
   };
+
+  const handleConfigSave = (newConfig: CampaignConfig) => {
+    setCampaignConfig(newConfig);
+    saveObjectToStorage('supersorteios_config', newConfig);
+    toast({ title: "Configurações salvas!", description: "As novas configurações da campanha foram aplicadas." });
+  }
 
 
   if (!isClient) {
@@ -118,6 +139,8 @@ export default function AdminDashboardPage() {
             </AlertDialog>
         </div>
       </div>
+      
+      <CampaignSettings currentConfig={campaignConfig} onSave={handleConfigSave} />
 
       <RaffleSection 
         allCoupons={allCoupons} 

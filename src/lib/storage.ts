@@ -12,9 +12,12 @@ export const getFromStorage = <T>(key: string): T[] => {
         if (newItem.date) {
             newItem.date = new Date(newItem.date);
         }
+        if (newItem.saleDate) {
+            newItem.saleDate = new Date(newItem.saleDate);
+        }
         // For winner history which is an array of arrays
         if (Array.isArray(newItem)) {
-            return newItem.map(winner => ({...winner, date: new Date(winner.date)}));
+            return newItem.map(winner => ({...winner, date: new Date(winner.date), saleDate: new Date(winner.saleDate)}));
         }
         return newItem;
       });
@@ -46,3 +49,26 @@ export const clearFromStorage = (key: string): void => {
     if (typeof window === 'undefined') return;
     localStorage.removeItem(key);
 }
+
+// --- Funções para Objetos ---
+
+export const getObjectFromStorage = <T>(key: string): T | null => {
+  if (typeof window === 'undefined') return null;
+  const data = localStorage.getItem(key);
+  if (!data) return null;
+  try {
+    return JSON.parse(data) as T;
+  } catch (error) {
+    console.error(`Error parsing object from localStorage for key "${key}":`, error);
+    return null;
+  }
+};
+
+export const saveObjectToStorage = <T>(key: string, data: T): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.error(`Error saving object to localStorage for key "${key}":`, error);
+  }
+};
