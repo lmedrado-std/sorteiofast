@@ -1,6 +1,7 @@
 export type Sale = {
   id: string;
-  purchaseNumber: string;
+  sellerName: string;
+  cpf: string;
   value: number;
   date: Date;
   employeeId: string;

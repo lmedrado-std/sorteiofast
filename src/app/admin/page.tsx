@@ -65,8 +65,8 @@ export default function AdminPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Cupom ID</TableHead>
-                      <TableHead>ID Funcionário</TableHead>
-                      <TableHead>Venda Associada</TableHead>
+                      <TableHead>Nome do Vendedor</TableHead>
+                      <TableHead>CPF</TableHead>
                       <TableHead>Valor da Venda</TableHead>
                       <TableHead>Data da Venda</TableHead>
                     </TableRow>
@@ -78,8 +78,8 @@ export default function AdminPage() {
                         return (
                           <TableRow key={coupon.id}>
                             <TableCell><Badge variant="outline" className="font-mono">{coupon.id}</Badge></TableCell>
-                            <TableCell className="font-mono text-sm">{coupon.employeeId}</TableCell>
-                            <TableCell className="font-mono text-sm">{coupon.saleId}</TableCell>
+                            <TableCell>{sale ? sale.sellerName : 'N/A'}</TableCell>
+                            <TableCell className="font-mono text-sm">{sale ? sale.cpf : 'N/A'}</TableCell>
                             <TableCell>
                               {sale ? `R$ ${sale.value.toFixed(2)}` : 'N/A'}
                             </TableCell>

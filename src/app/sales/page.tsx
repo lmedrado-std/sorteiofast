@@ -39,7 +39,8 @@ import CountdownTimer from '@/components/app/CountdownTimer';
 import { CalendarIcon, PlusCircle, Ticket, User, VerifiedIcon } from 'lucide-react';
 
 const saleSchema = z.object({
-  purchaseNumber: z.string().min(1, 'Número da compra é obrigatório.'),
+  sellerName: z.string().min(1, 'Nome do vendedor é obrigatório.'),
+  cpf: z.string().min(11, 'CPF deve ter 11 dígitos.').max(11, 'CPF deve ter 11 dígitos.'),
   value: z.coerce.number().positive('O valor deve ser positivo.'),
   date: z.date({
     required_error: 'A data da venda é obrigatória.',
@@ -86,7 +87,8 @@ export default function SalesPage() {
   const form = useForm<z.infer<typeof saleSchema>>({
     resolver: zodResolver(saleSchema),
     defaultValues: {
-      purchaseNumber: '',
+      sellerName: '',
+      cpf: '',
       value: 0,
       date: new Date(),
     },
@@ -105,7 +107,7 @@ export default function SalesPage() {
     const saleId = `SALE-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
     const sale: Sale = { ...data, id: saleId, employeeId };
 
-    const couponCount = Math.floor(data.value / 250);
+    const couponCount = Math.floor(data.value / 1000);
     
     if (couponCount > 0) {
         const newCoupons: Coupon[] = Array.from({ length: couponCount }, () => ({
@@ -127,7 +129,7 @@ export default function SalesPage() {
         addToStorage('supersorteios_sales', sale);
         toast({
             title: "Venda Registrada",
-            description: "A venda foi registrada, mas o valor não foi suficiente para gerar um cupom (mínimo R$ 250).",
+            description: "A venda foi registrada, mas o valor não foi suficiente para gerar um cupom (mínimo R$ 1000).",
         });
     }
     form.reset();
@@ -171,7 +173,7 @@ export default function SalesPage() {
                 <CardHeader>
                   <CardTitle>Nova Venda</CardTitle>
                   <CardDescription>
-                    Preencha os dados da venda. Para cada R$ 250,00, um cupom será gerado.
+                    Preencha os dados da venda. Para cada R$ 1.000,00, um cupom será gerado.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -179,12 +181,25 @@ export default function SalesPage() {
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                       <FormField
                         control={form.control}
-                        name="purchaseNumber"
+                        name="sellerName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Número da Compra</FormLabel>
+                            <FormLabel>Nome do Vendedor</FormLabel>
                             <FormControl>
-                              <Input placeholder="Ex: 112233" {...field} />
+                              <Input placeholder="Ex: João da Silva" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                       <FormField
+                        control={form.control}
+                        name="cpf"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>CPF</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ex: 12345678900" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -197,7 +212,7 @@ export default function SalesPage() {
                           <FormItem>
                             <FormLabel>Valor da Venda (R$)</FormLabel>
                             <FormControl>
-                              <Input type="number" step="0.01" placeholder="Ex: 550.75" {...field} />
+                              <Input type="number" step="0.01" placeholder="Ex: 1050.75" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
