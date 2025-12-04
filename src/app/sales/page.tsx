@@ -43,7 +43,7 @@ import { cn } from '@/lib/utils';
 import type { Sale, Coupon } from '@/lib/types';
 import AppHeader from '@/components/app/AppHeader';
 import CountdownTimer from '@/components/app/CountdownTimer';
-import { CalendarIcon, LogIn, PlusCircle, Ticket, User, VerifiedIcon } from 'lucide-react';
+import { CalendarIcon, LogIn, PlusCircle, Search, Ticket, User, VerifiedIcon } from 'lucide-react';
 import { getFromStorage, addToStorage } from '@/lib/storage';
 
 
@@ -57,24 +57,17 @@ const saleSchema = z.object({
   store: z.string({ required_error: 'A loja é obrigatória.'}),
 });
 
-const loginSchema = z.object({
+const couponQuerySchema = z.object({
   cpf: z.string().min(11, 'CPF deve ter 11 dígitos.').max(11, 'CPF deve ter 11 dígitos.'),
 });
 
 
 export default function SalesPage() {
   const { toast } = useToast();
-  const [loggedInCpf, setLoggedInCpf] = useState<string | null>(null);
+  const [viewingCpf, setViewingCpf] = useState<string | null>(null);
   const [myCoupons, setMyCoupons] = useState<Coupon[]>([]);
 
-  useEffect(() => {
-    const cpf = sessionStorage.getItem('loggedInCpf');
-    if (cpf) {
-      handleLoginSuccess(cpf);
-    }
-  }, []);
-
-  const form = useForm<z.infer<typeof saleSchema>>({
+  const saleForm = useForm<z.infer<typeof saleSchema>>({
     resolver: zodResolver(saleSchema),
     defaultValues: {
       sellerName: '',
@@ -84,56 +77,27 @@ export default function SalesPage() {
     },
   });
 
-  const loginForm = useForm<z.infer<typeof loginSchema>>({
-    resolver: zodResolver(loginSchema),
+  const couponQueryForm = useForm<z.infer<typeof couponQuerySchema>>({
+    resolver: zodResolver(couponQuerySchema),
     defaultValues: {
       cpf: '',
     }
   });
 
-  const handleLoginSuccess = (cpf: string) => {
-    setLoggedInCpf(cpf);
-    sessionStorage.setItem('loggedInCpf', cpf);
-
-    const allSales = getFromStorage<Sale>('supersorteios_sales');
-    const employeeSales = allSales.filter(sale => sale.cpf === cpf);
-    const saleIds = employeeSales.map(sale => sale.id);
-
+  const onCouponQuerySubmit = (data: z.infer<typeof couponQuerySchema>) => {
+    setViewingCpf(data.cpf);
     const allCoupons = getFromStorage<Coupon>('supersorteios_coupons');
-    const employeeCoupons = allCoupons.filter(coupon => saleIds.includes(coupon.saleId));
-    
+    const employeeCoupons = allCoupons.filter(coupon => coupon.employeeId === data.cpf);
     setMyCoupons(employeeCoupons);
-
-    // Pre-fill the form
-    const latestSale = employeeSales.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-    form.reset({
-      sellerName: latestSale?.sellerName || '',
-      cpf: cpf,
-      value: 0,
-      date: new Date(),
-    });
-  };
-
-  const onLoginSubmit = (data: z.infer<typeof loginSchema>) => {
-    handleLoginSuccess(data.cpf);
     toast({
-      title: 'Login efetuado!',
-      description: 'Bem-vindo(a) de volta!',
+      title: 'Busca Concluída',
+      description: `${employeeCoupons.length} cupons encontrados para este CPF.`,
     });
   };
 
-  function onSubmit(data: z.infer<typeof saleSchema>) {
-    if (!loggedInCpf) {
-        toast({
-            variant: "destructive",
-            title: "Erro",
-            description: "CPF do vendedor não encontrado. Faça login novamente.",
-        });
-        return;
-    }
-
+  function onSaleSubmit(data: z.infer<typeof saleSchema>) {
     const saleId = `SALE-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
-    const sale: Sale = { ...data, id: saleId, employeeId: loggedInCpf }; // Using CPF as employeeId for simplicity
+    const sale: Sale = { ...data, id: saleId, employeeId: data.cpf };
 
     const couponCount = Math.floor(data.value / 1000);
     
@@ -141,12 +105,16 @@ export default function SalesPage() {
         const newCoupons: Coupon[] = Array.from({ length: couponCount }, () => ({
             id: `CUPOM-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
             saleId: sale.id,
-            employeeId: loggedInCpf, // Using CPF as employeeId for simplicity
+            employeeId: data.cpf,
         }));
         
         addToStorage('supersorteios_sales', sale);
         addToStorage('supersorteios_coupons', newCoupons);
-        setMyCoupons(prev => [...prev, ...newCoupons]);
+
+        // If the user is viewing their own coupons, update the list
+        if (viewingCpf === data.cpf) {
+          setMyCoupons(prev => [...prev, ...newCoupons]);
+        }
 
         toast({
             title: "Sucesso!",
@@ -161,9 +129,9 @@ export default function SalesPage() {
         });
     }
     
-    // Reset only value and date
-    form.reset({
-      ...form.getValues(),
+    // Reset only value and date, keep other fields
+    saleForm.reset({
+      ...saleForm.getValues(),
       value: 0,
       date: new Date(),
     });
@@ -174,51 +142,6 @@ export default function SalesPage() {
   campaignEndDate.setMonth(campaignEndDate.getMonth() + 1);
   campaignEndDate.setDate(0); // Last day of current month
   campaignEndDate.setHours(23, 59, 59);
-
-
-  if (!loggedInCpf) {
-    return (
-      <div className="flex flex-col min-h-screen">
-        <AppHeader />
-        <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
-          <Card className="max-w-md w-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <User className="w-6 h-6" />
-                Acesso do Funcionário
-              </CardTitle>
-              <CardDescription>
-                Por favor, insira seu CPF para registrar vendas e ver seus cupons.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...loginForm}>
-                <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                  <FormField
-                    control={loginForm.control}
-                    name="cpf"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>CPF</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Digite seu CPF (apenas números)" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full">
-                    <LogIn className="mr-2" />
-                    Entrar
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -231,7 +154,7 @@ export default function SalesPage() {
                 <User /> Painel do Funcionário
               </CardTitle>
               <CardDescription>
-                Bem-vindo(a)! CPF logado: <span className="font-bold text-primary">{loggedInCpf}</span>
+                Registre vendas para gerar cupons e consulte seus cupons existentes.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -244,7 +167,7 @@ export default function SalesPage() {
                 <PlusCircle className="mr-2 h-4 w-4" /> Registrar Venda
               </TabsTrigger>
               <TabsTrigger value="coupons">
-                <Ticket className="mr-2 h-4 w-4" /> Meus Cupons ({myCoupons.length})
+                <Ticket className="mr-2 h-4 w-4" /> Meus Cupons
               </TabsTrigger>
             </TabsList>
             <TabsContent value="sales">
@@ -256,10 +179,10 @@ export default function SalesPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <Form {...saleForm}>
+                    <form onSubmit={saleForm.handleSubmit(onSaleSubmit)} className="space-y-6">
                       <FormField
-                        control={form.control}
+                        control={saleForm.control}
                         name="sellerName"
                         render={({ field }) => (
                           <FormItem>
@@ -272,20 +195,20 @@ export default function SalesPage() {
                         )}
                       />
                        <FormField
-                        control={form.control}
+                        control={saleForm.control}
                         name="cpf"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>CPF</FormLabel>
                             <FormControl>
-                              <Input placeholder="Ex: 12345678900" {...field} disabled />
+                              <Input placeholder="Digite seu CPF (apenas números)" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={saleForm.control}
                         name="store"
                         render={({ field }) => (
                           <FormItem>
@@ -306,7 +229,7 @@ export default function SalesPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={saleForm.control}
                         name="value"
                         render={({ field }) => (
                           <FormItem>
@@ -319,7 +242,7 @@ export default function SalesPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={saleForm.control}
                         name="date"
                         render={({ field }) => (
                           <FormItem className="flex flex-col">
@@ -369,30 +292,57 @@ export default function SalesPage() {
             </TabsContent>
             <TabsContent value="coupons">
               <Card>
-                <CardHeader>
-                  <CardTitle>Seus Cupons Gerados</CardTitle>
-                  <CardDescription>Aqui estão todos os cupons que você ganhou até agora.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {myCoupons.length > 0 ? (
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <AnimatePresence>
-                        {myCoupons.map((coupon, index) => (
-                           <motion.div
-                             key={coupon.id}
-                             initial={{ opacity: 0, y: 20 }}
-                             animate={{ opacity: 1, y: 0 }}
-                             transition={{ delay: index * 0.05 }}
-                             className="bg-secondary/50 p-3 rounded-md flex items-center gap-3 border-l-4 border-primary"
-                           >
-                             <Ticket className="w-6 h-6 text-accent" />
-                             <span className="font-mono text-sm font-semibold">{coupon.id}</span>
-                           </motion.div>
-                        ))}
-                        </AnimatePresence>
-                     </div>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-8">Você ainda não gerou nenhum cupom.</p>
+                 <CardHeader>
+                    <CardTitle>Consultar Meus Cupons</CardTitle>
+                    <CardDescription>Digite seu CPF para ver todos os cupons que você gerou.</CardDescription>
+                  </CardHeader>
+                <CardContent className="space-y-6">
+                  <Form {...couponQueryForm}>
+                    <form onSubmit={couponQueryForm.handleSubmit(onCouponQuerySubmit)} className="flex items-start gap-2">
+                       <FormField
+                          control={couponQueryForm.control}
+                          name="cpf"
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormLabel>CPF</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Digite seu CPF (apenas números)" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Button type="submit" className="mt-8">
+                          <Search className="mr-2 h-4 w-4" />
+                          Buscar
+                        </Button>
+                    </form>
+                  </Form>
+
+                  {viewingCpf && (
+                    <div>
+                      <h3 className="mb-4 text-lg font-medium">Cupons para o CPF: <span className="font-bold text-primary">{viewingCpf}</span> ({myCoupons.length})</h3>
+                       {myCoupons.length > 0 ? (
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <AnimatePresence>
+                            {myCoupons.map((coupon, index) => (
+                               <motion.div
+                                 key={coupon.id}
+                                 initial={{ opacity: 0, y: 20 }}
+                                 animate={{ opacity: 1, y: 0 }}
+                                 transition={{ delay: index * 0.05 }}
+                                 className="bg-secondary/50 p-3 rounded-md flex items-center gap-3 border-l-4 border-primary"
+                               >
+                                 <Ticket className="w-6 h-6 text-accent" />
+                                 <span className="font-mono text-sm font-semibold">{coupon.id}</span>
+                               </motion.div>
+                            ))}
+                            </AnimatePresence>
+                         </div>
+                      ) : (
+                        <p className="text-center text-muted-foreground py-8">Nenhum cupom encontrado para este CPF.</p>
+                      )}
+                    </div>
                   )}
                 </CardContent>
               </Card>
