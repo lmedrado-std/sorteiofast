@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, PartyPopper, Trophy } from 'lucide-react';
 import { Badge } from '../ui/badge';
-import type { Coupon, Sale } from '@/lib/types';
+import type { Coupon, Sale, Winner } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 const raffleSchema = z.object({
@@ -25,28 +25,24 @@ const raffleSchema = z.object({
 interface RaffleSectionProps {
     allCoupons: Coupon[];
     allSales: Sale[];
+    onRaffleConducted: (winners: Winner[]) => void;
 }
 
-interface Winner {
-    couponId: string;
-    sellerName: string;
-    store: string;
-}
-
-export default function RaffleSection({ allCoupons, allSales }: RaffleSectionProps) {
+export default function RaffleSection({ allCoupons, allSales, onRaffleConducted }: RaffleSectionProps) {
     const { toast } = useToast();
-    const [winners, setWinners] = useState<Winner[]>([]);
+    const [lastWinners, setLastWinners] = useState<Winner[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     const form = useForm<z.infer<typeof raffleSchema>>({
         resolver: zodResolver(raffleSchema),
         defaultValues: {
             numberOfWinners: 1,
+            store: "all",
         },
     });
 
     const onSubmit = async (data: z.infer<typeof raffleSchema>) => {
-        let couponsForRaffle = allCoupons;
+        let couponsForRaffle: Coupon[];
 
         if (data.store && data.store !== 'all') {
             const saleIdsForStore = allSales
@@ -54,13 +50,15 @@ export default function RaffleSection({ allCoupons, allSales }: RaffleSectionPro
                 .map(sale => sale.id);
             
             couponsForRaffle = allCoupons.filter(coupon => saleIdsForStore.includes(coupon.saleId));
+        } else {
+            couponsForRaffle = allCoupons;
         }
 
         if (couponsForRaffle.length === 0) {
             toast({
                 variant: 'destructive',
                 title: 'Nenhum Cupom',
-                description: `Não há cupons disponíveis para a loja selecionada.`,
+                description: `Não há cupons disponíveis para a seleção atual.`,
             });
             return;
         }
@@ -68,13 +66,13 @@ export default function RaffleSection({ allCoupons, allSales }: RaffleSectionPro
         if (data.numberOfWinners > couponsForRaffle.length) {
             form.setError('numberOfWinners', {
                 type: 'manual',
-                message: 'O nº de ganhadores não pode ser maior que o nº de cupons da loja.',
+                message: 'O nº de ganhadores não pode ser maior que o nº de cupons.',
             });
             return;
         }
 
         setIsLoading(true);
-        setWinners([]);
+        setLastWinners([]);
 
         try {
             const result = await conductRaffle({
@@ -89,10 +87,12 @@ export default function RaffleSection({ allCoupons, allSales }: RaffleSectionPro
                     couponId,
                     sellerName: sale ? sale.sellerName : 'Vendedor não encontrado',
                     store: sale ? sale.store : 'Loja não encontrada',
+                    date: new Date(),
                 };
             });
             
-            setWinners(winnerDetails);
+            setLastWinners(winnerDetails);
+            onRaffleConducted(winnerDetails);
 
             toast({
                 title: "Sorteio Realizado!",
@@ -110,7 +110,11 @@ export default function RaffleSection({ allCoupons, allSales }: RaffleSectionPro
         }
     };
     
-    const availableStores = [...new Set(allSales.map(s => s.store))];
+    // Get stores from sales that have corresponding coupons
+    const saleIdsWithCoupons = new Set(allCoupons.map(c => c.saleId));
+    const salesWithCoupons = allSales.filter(s => saleIdsWithCoupons.has(s.id));
+    const availableStores = [...new Set(salesWithCoupons.map(s => s.store))];
+
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -130,7 +134,7 @@ export default function RaffleSection({ allCoupons, allSales }: RaffleSectionPro
                                 name="store"
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Filtrar por Loja (Opcional)</FormLabel>
+                                    <FormLabel>Filtrar por Loja</FormLabel>
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
                                         <SelectTrigger>
@@ -181,15 +185,15 @@ export default function RaffleSection({ allCoupons, allSales }: RaffleSectionPro
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <PartyPopper className="text-primary" />
-                        Ganhadores
+                        Últimos Ganhadores
                     </CardTitle>
-                    <CardDescription>Os cupons sorteados serão exibidos aqui.</CardDescription>
+                    <CardDescription>Os cupons do último sorteio serão exibidos aqui.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {winners.length > 0 ? (
+                    {lastWinners.length > 0 ? (
                         <ul className="space-y-3">
                             <AnimatePresence>
-                                {winners.map((winner, index) => (
+                                {lastWinners.map((winner, index) => (
                                     <motion.li
                                         key={winner.couponId}
                                         initial={{ opacity: 0, x: -20 }}

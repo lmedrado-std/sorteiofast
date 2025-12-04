@@ -44,6 +44,8 @@ import type { Sale, Coupon } from '@/lib/types';
 import AppHeader from '@/components/app/AppHeader';
 import CountdownTimer from '@/components/app/CountdownTimer';
 import { CalendarIcon, LogIn, PlusCircle, Ticket, User, VerifiedIcon } from 'lucide-react';
+import { getFromStorage, addToStorage } from '@/lib/storage';
+
 
 const saleSchema = z.object({
   sellerName: z.string().min(1, 'Nome do vendedor é obrigatório.'),
@@ -59,24 +61,6 @@ const loginSchema = z.object({
   cpf: z.string().min(11, 'CPF deve ter 11 dígitos.').max(11, 'CPF deve ter 11 dígitos.'),
 });
 
-// Mocking a client-side "database" using localStorage
-const getFromStorage = <T>(key: string): T[] => {
-  if (typeof window === 'undefined') return [];
-  const data = localStorage.getItem(key);
-  if (!data) return [];
-  const items = JSON.parse(data);
-  if (key === 'supersorteios_sales') {
-    return items.map((item: any) => ({ ...item, date: new Date(item.date) }));
-  }
-  return items;
-};
-
-const addToStorage = <T>(key: string, newData: T | T[]): void => {
-  if (typeof window === 'undefined') return;
-  const existingData = getFromStorage<T>(key);
-  const dataToAdd = Array.isArray(newData) ? newData : [newData];
-  localStorage.setItem(key, JSON.stringify([...existingData, ...dataToAdd]));
-};
 
 export default function SalesPage() {
   const { toast } = useToast();

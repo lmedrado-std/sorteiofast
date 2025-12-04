@@ -33,6 +33,14 @@ export default function AdminLayout({
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
+                  <Link href="/">
+                    <Home />
+                    Início
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
                   <Link href="/admin/dashboard">
                     <Ticket />
                     Sorteios e Cupons
@@ -77,5 +85,3 @@ export default function AdminLayout({
     </SidebarProvider>
   );
 }
-
-    

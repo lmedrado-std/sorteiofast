@@ -13,3 +13,10 @@ export type Coupon = {
   saleId: string;
   employeeId: string;
 };
+
+export type Winner = {
+  couponId: string;
+  sellerName: string;
+  store: string;
+  date: Date;
+};
