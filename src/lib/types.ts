@@ -19,4 +19,6 @@ export type Winner = {
   sellerName: string;
   store: string;
   date: Date;
+  saleValue: number;
+  saleDate: Date;
 };

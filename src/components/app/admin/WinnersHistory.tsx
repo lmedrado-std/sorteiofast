@@ -51,12 +51,16 @@ export default function WinnersHistory({ history }: WinnersHistoryProps) {
                   {raffle.map((winner) => (
                     <li
                       key={winner.couponId}
-                      className="flex flex-wrap items-center gap-3 bg-secondary/50 p-3 rounded-lg"
+                      className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-secondary/50 p-3 rounded-lg"
                     >
-                      <Trophy className="w-6 h-6 text-amber-500" />
+                      <Trophy className="w-6 h-6 text-amber-500 mt-1 sm:mt-0" />
                       <div className="flex flex-col flex-1">
                         <span className="font-semibold">{winner.sellerName}</span>
                         <span className="text-xs text-muted-foreground">{winner.store}</span>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mt-1">
+                            <span>Venda: <span className="font-medium">R$ {winner.saleValue.toFixed(2)}</span></span>
+                            <span>Data: <span className="font-medium">{format(new Date(winner.saleDate), 'dd/MM/yyyy', { locale: ptBR })}</span></span>
+                        </div>
                       </div>
                       <Badge className="font-mono text-xs" variant="outline">{winner.couponId}</Badge>
                     </li>

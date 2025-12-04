@@ -16,6 +16,8 @@ import { Loader2, PartyPopper, Trophy } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import type { Coupon, Sale, Winner } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const raffleSchema = z.object({
     numberOfWinners: z.coerce.number().int().min(1, 'Pelo menos 1 ganhador é necessário.').positive(),
@@ -88,6 +90,8 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                     sellerName: sale ? sale.sellerName : 'Vendedor não encontrado',
                     store: sale ? sale.store : 'Loja não encontrada',
                     date: new Date(),
+                    saleValue: sale ? sale.value : 0,
+                    saleDate: sale ? sale.date : new Date(),
                 };
             });
             
@@ -199,12 +203,16 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: index * 0.1 }}
-                                        className="flex flex-wrap items-center gap-3 bg-secondary p-3 rounded-lg"
+                                        className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-secondary p-3 rounded-lg"
                                     >
-                                        <Trophy className="w-6 h-6 text-amber-500" />
+                                        <Trophy className="w-6 h-6 text-amber-500 mt-1 sm:mt-0" />
                                         <div className="flex flex-col flex-1">
                                             <span className="font-semibold">{winner.sellerName}</span>
                                             <span className="text-xs text-muted-foreground">{winner.store}</span>
+                                             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mt-1">
+                                                <span>Venda: <span className="font-medium">R$ {winner.saleValue.toFixed(2)}</span></span>
+                                                <span>Data: <span className="font-medium">{format(new Date(winner.saleDate), 'dd/MM/yyyy', { locale: ptBR })}</span></span>
+                                            </div>
                                         </div>
                                         <Badge className="font-mono text-xs w-fit" variant="outline">{winner.couponId}</Badge>
                                     </motion.li>
