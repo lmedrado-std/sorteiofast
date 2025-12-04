@@ -37,8 +37,10 @@ export default function AdminPage() {
   useEffect(() => {
     // In a real app, this data would be fetched from a secure backend.
     // For this demo, we are reading from localStorage.
-    setAllCoupons(getFromStorage<Coupon>('supersorteios_coupons'));
-    setAllSales(getFromStorage<Sale>('supersorteios_sales'));
+    if(isAuthenticated) {
+      setAllCoupons(getFromStorage<Coupon>('supersorteios_coupons'));
+      setAllSales(getFromStorage<Sale>('supersorteios_sales'));
+    }
   }, [isAuthenticated]); // Re-fetch if authenticated
 
   const getSaleForCoupon = (coupon: Coupon) => {
@@ -108,7 +110,7 @@ export default function AdminPage() {
             Painel do Administrador
           </h1>
 
-          <RaffleSection allCoupons={allCoupons.map(c => c.id)} />
+          <RaffleSection allCoupons={allCoupons} allSales={allSales} />
 
           <Card>
             <CardHeader>

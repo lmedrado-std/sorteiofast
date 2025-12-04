@@ -14,18 +14,25 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, PartyPopper, Trophy } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import type { Coupon, Sale } from '@/lib/types';
 
 const raffleSchema = z.object({
     numberOfWinners: z.coerce.number().int().min(1, 'Pelo menos 1 ganhador é necessário.').positive(),
 });
 
 interface RaffleSectionProps {
-    allCoupons: string[];
+    allCoupons: Coupon[];
+    allSales: Sale[];
 }
 
-export default function RaffleSection({ allCoupons }: RaffleSectionProps) {
+interface Winner {
+    couponId: string;
+    sellerName: string;
+}
+
+export default function RaffleSection({ allCoupons, allSales }: RaffleSectionProps) {
     const { toast } = useToast();
-    const [winners, setWinners] = useState<string[]>([]);
+    const [winners, setWinners] = useState<Winner[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     const form = useForm<z.infer<typeof raffleSchema>>({
@@ -49,13 +56,24 @@ export default function RaffleSection({ allCoupons }: RaffleSectionProps) {
 
         try {
             const result = await conductRaffle({
-                coupons: allCoupons,
+                coupons: allCoupons.map(c => c.id),
                 numberOfWinners: data.numberOfWinners,
             });
-            setWinners(result.winningCoupons);
+
+            const winnerDetails: Winner[] = result.winningCoupons.map(couponId => {
+                const coupon = allCoupons.find(c => c.id === couponId);
+                const sale = coupon ? allSales.find(s => s.id === coupon.saleId) : undefined;
+                return {
+                    couponId,
+                    sellerName: sale ? sale.sellerName : 'Vendedor não encontrado'
+                };
+            });
+            
+            setWinners(winnerDetails);
+
             toast({
                 title: "Sorteio Realizado!",
-                description: `${result.winningCoupons.length} ganhador(es) foram selecionados!`,
+                description: `${winnerDetails.length} ganhador(es) foram selecionados!`,
             });
         } catch (error) {
             console.error('Raffle error:', error);
@@ -125,14 +143,17 @@ export default function RaffleSection({ allCoupons }: RaffleSectionProps) {
                             <AnimatePresence>
                                 {winners.map((winner, index) => (
                                     <motion.li
-                                        key={winner}
+                                        key={winner.couponId}
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: index * 0.1 }}
-                                        className="flex items-center gap-3 bg-secondary p-3 rounded-lg"
+                                        className="flex flex-wrap items-center gap-3 bg-secondary p-3 rounded-lg"
                                     >
                                         <Trophy className="w-6 h-6 text-amber-500" />
-                                        <Badge className="font-mono text-base">{winner}</Badge>
+                                        <div className="flex flex-col">
+                                            <span className="font-semibold">{winner.sellerName}</span>
+                                            <Badge className="font-mono text-xs w-fit" variant="outline">{winner.couponId}</Badge>
+                                        </div>
                                     </motion.li>
                                 ))}
                             </AnimatePresence>
