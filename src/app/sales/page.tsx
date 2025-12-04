@@ -1,13 +1,14 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { AnimatePresence, motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { collection, query, where, getDocs, doc, writeBatch } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -44,10 +45,10 @@ import { cn, isCampaignActive as isCampaignStillActive } from '@/lib/utils';
 import type { Sale, Coupon } from '@/lib/types';
 import AppHeader from '@/components/app/AppHeader';
 import CountdownTimer from '@/components/app/CountdownTimer';
-import { CalendarIcon, LogIn, PlusCircle, Search, Ticket, User, VerifiedIcon, AlertTriangle } from 'lucide-react';
-import { getFromStorage, addToStorage, getObjectFromStorage } from '@/lib/storage';
+import { CalendarIcon, PlusCircle, Search, Ticket, User, VerifiedIcon, AlertTriangle, Loader2 } from 'lucide-react';
 import { CAMPAIGN_END_DATE, COUPON_VALUE_THRESHOLD } from '@/lib/config';
 import type { CampaignConfig } from '@/app/admin/dashboard/page';
+import { useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 
 
 const saleSchema = z.object({
@@ -68,33 +69,36 @@ type CouponWithSaleData = Coupon & { sale?: Sale };
 
 export default function SalesPage() {
   const { toast } = useToast();
+  const firestore = useFirestore();
+  
   const [viewingCpf, setViewingCpf] = useState<string | null>(null);
   const [myCoupons, setMyCoupons] = useState<CouponWithSaleData[]>([]);
-  const [allSales, setAllSales] = useState<Sale[]>([]);
-  const [campaignConfig, setCampaignConfig] = useState<CampaignConfig>({
-    couponValueThreshold: COUPON_VALUE_THRESHOLD,
-    campaignEndDate: new Date(CAMPAIGN_END_DATE),
-  });
-  const [isClient, setIsClient] = useState(false);
-  const [isCampaignActive, setIsCampaignActive] = useState(true);
+  const [isSearchingCoupons, setIsSearchingCoupons] = useState(false);
+  const [isSubmittingSale, setIsSubmittingSale] = useState(false);
 
-  useEffect(() => {
-    setIsClient(true);
-    const savedConfig = getObjectFromStorage<CampaignConfig>('supersorteios_config');
-    let activeConfig = {
+  // Firestore ref and hook for campaign config
+  const configDocRef = useMemoFirebase(() => doc(firestore, 'config', 'campaign'), [firestore]);
+  const { data: campaignConfigDoc, isLoading: isLoadingConfig } = useDoc<CampaignConfig>(configDocRef);
+  
+  const [isClient, setIsClient] = useState(false);
+  
+  const campaignConfig = useMemo(() => {
+    if (campaignConfigDoc) {
+      return {
+        ...campaignConfigDoc,
+        campaignEndDate: new Date(campaignConfigDoc.campaignEndDate)
+      };
+    }
+    return {
       couponValueThreshold: COUPON_VALUE_THRESHOLD,
       campaignEndDate: new Date(CAMPAIGN_END_DATE),
     };
-    if (savedConfig) {
-      activeConfig = {
-        ...savedConfig,
-        campaignEndDate: new Date(savedConfig.campaignEndDate),
-      };
-    }
-    
-    setCampaignConfig(activeConfig);
-    setIsCampaignActive(isCampaignStillActive(activeConfig.campaignEndDate));
-    setAllSales(getFromStorage<Sale>('supersorteios_sales'));
+  }, [campaignConfigDoc]);
+
+  const isCampaignActive = useMemo(() => isCampaignStillActive(campaignConfig.campaignEndDate), [campaignConfig.campaignEndDate]);
+
+  useEffect(() => {
+    setIsClient(true);
   }, []);
 
   const saleForm = useForm<z.infer<typeof saleSchema>>({
@@ -114,29 +118,57 @@ export default function SalesPage() {
     }
   });
 
-  const onCouponQuerySubmit = (data: z.infer<typeof couponQuerySchema>) => {
+  const onCouponQuerySubmit = async (data: z.infer<typeof couponQuerySchema>) => {
+    setIsSearchingCoupons(true);
+    setMyCoupons([]);
     setViewingCpf(data.cpf);
-    const currentSales = getFromStorage<Sale>('supersorteios_sales');
-    const allCoupons = getFromStorage<Coupon>('supersorteios_coupons');
-    
-    setAllSales(currentSales); // Update sales state as well
 
-    const employeeCoupons = allCoupons.filter(coupon => coupon.employeeId === data.cpf);
-    
-    const couponsWithSaleData: CouponWithSaleData[] = employeeCoupons.map(coupon => {
-      const sale = currentSales.find(s => s.id === coupon.saleId);
-      return { ...coupon, sale };
-    });
+    try {
+      const couponsRef = collection(firestore, 'coupons');
+      const q = query(couponsRef, where("employeeId", "==", data.cpf));
+      const couponSnap = await getDocs(q);
+      const employeeCoupons = couponSnap.docs.map(doc => ({ ...doc.data() as Coupon, id: doc.id }));
 
-    setMyCoupons(couponsWithSaleData);
-    
-    toast({
-      title: 'Busca Concluída',
-      description: `${employeeCoupons.length} cupons encontrados para este CPF.`,
-    });
+      if (employeeCoupons.length === 0) {
+        setMyCoupons([]);
+        toast({
+          title: 'Nenhum Cupom Encontrado',
+          description: `Não foram encontrados cupons para o CPF informado.`,
+        });
+        return;
+      }
+      
+      // Batch-fetch related sales
+      const saleIds = [...new Set(employeeCoupons.map(c => c.saleId))];
+      const salesRef = collection(firestore, 'sales');
+      const salesQuery = query(salesRef, where('id', 'in', saleIds));
+      const salesSnap = await getDocs(salesQuery);
+      const salesData = salesSnap.docs.map(doc => doc.data() as Sale);
+
+      const couponsWithSaleData: CouponWithSaleData[] = employeeCoupons.map(coupon => {
+        const sale = salesData.find(s => s.id === coupon.saleId);
+        return { ...coupon, sale };
+      });
+      
+      setMyCoupons(couponsWithSaleData);
+      toast({
+        title: 'Busca Concluída',
+        description: `${employeeCoupons.length} cupons encontrados para este CPF.`,
+      });
+    } catch (error) {
+      console.error("Error fetching coupons: ", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao buscar cupons",
+        description: "Houve um problema ao consultar o banco de dados. Tente novamente.",
+      });
+    } finally {
+      setIsSearchingCoupons(false);
+    }
   };
 
-  function onSaleSubmit(data: z.infer<typeof saleSchema>) {
+  async function onSaleSubmit(data: z.infer<typeof saleSchema>) {
+    setIsSubmittingSale(true);
     // 1. Check if campaign is active
     if (!isCampaignActive) {
       toast({
@@ -144,6 +176,7 @@ export default function SalesPage() {
         title: "Campanha encerrada",
         description: "Não é possível registrar novas vendas.",
       });
+      setIsSubmittingSale(false);
       return;
     }
 
@@ -154,58 +187,70 @@ export default function SalesPage() {
           title: "Valor Insuficiente",
           description: `O valor da venda deve ser de pelo menos R$ ${campaignConfig.couponValueThreshold.toFixed(2)} para registrar.`,
       });
+      setIsSubmittingSale(false);
       return;
     }
 
-    const saleId = `SALE-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
-    const sale: Sale = { ...data, id: saleId, employeeId: data.cpf };
+    try {
+      const saleId = `SALE-${doc(collection(firestore, 'sales')).id}`;
+      const sale: Sale = { ...data, id: saleId, employeeId: data.cpf, date: data.date };
 
-    const couponCount = Math.floor(data.value / campaignConfig.couponValueThreshold);
-    
-    addToStorage('supersorteios_sales', sale);
-    const updatedSales = [...allSales, sale];
-    setAllSales(updatedSales);
-    
-    if (couponCount > 0) {
-        const newCoupons: Coupon[] = Array.from({ length: couponCount }, () => ({
-            id: `CUPOM-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
-            saleId: sale.id,
-            employeeId: data.cpf,
-        }));
-        
-        addToStorage('supersorteios_coupons', newCoupons);
+      const couponCount = Math.floor(data.value / campaignConfig.couponValueThreshold);
+      
+      const batch = writeBatch(firestore);
+      
+      // Add sale
+      const saleRef = doc(firestore, "sales", saleId);
+      batch.set(saleRef, sale);
+      
+      // Add coupons
+      let newCoupons: CouponWithSaleData[] = [];
+      if (couponCount > 0) {
+          for (let i = 0; i < couponCount; i++) {
+              const couponId = `CUPOM-${doc(collection(firestore, 'coupons')).id.substring(0, 7).toUpperCase()}`;
+              const newCoupon: Coupon = {
+                  id: couponId,
+                  saleId: sale.id,
+                  employeeId: data.cpf,
+              };
+              const couponRef = doc(firestore, "coupons", couponId);
+              batch.set(couponRef, newCoupon);
+              newCoupons.push({ ...newCoupon, sale });
+          }
+      }
 
-        // If the user is viewing their own coupons, update the list
-        if (viewingCpf === data.cpf) {
-          const newCouponsWithSaleData: CouponWithSaleData[] = newCoupons.map(coupon => ({
-            ...coupon,
-            sale
-          }));
-          setMyCoupons(prev => [...prev, ...newCouponsWithSaleData]);
-        }
+      await batch.commit();
 
-        toast({
-            title: "Sucesso!",
-            description: `Venda registrada e ${couponCount} cupom(s) gerado(s)!`,
-            action: <div className="p-2 bg-green-500 rounded-full"><VerifiedIcon className="text-white" /></div>
-        });
-    } else {
-        // This case should theoretically not be reached due to the check above, but it's good for safety.
-        toast({
-            title: "Venda Registrada",
-            description: `A venda foi registrada, mas o valor não foi suficiente para gerar um cupom (mínimo R$ ${campaignConfig.couponValueThreshold}).`,
-        });
+      // If the user is viewing their own coupons, update the list
+      if (viewingCpf === data.cpf) {
+        setMyCoupons(prev => [...prev, ...newCoupons]);
+      }
+
+      toast({
+          title: "Sucesso!",
+          description: `Venda registrada e ${couponCount} cupom(s) gerado(s)!`,
+          action: <div className="p-2 bg-green-500 rounded-full"><VerifiedIcon className="text-white" /></div>
+      });
+       // Reset only value and date, keep other fields
+      saleForm.reset({
+        ...saleForm.getValues(),
+        value: 0,
+        date: new Date(),
+      });
+      
+    } catch (error) {
+      console.error("Error submitting sale:", error);
+      toast({
+        title: "Erro ao registrar venda",
+        description: "Houve um problema ao salvar os dados. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingSale(false);
     }
-    
-    // Reset only value and date, keep other fields
-    saleForm.reset({
-      ...saleForm.getValues(),
-      value: 0,
-      date: new Date(),
-    });
   }
 
-  if (!isClient) {
+  if (!isClient || isLoadingConfig) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
         <p className="text-sm text-muted-foreground">Carregando painel...</p>
@@ -390,8 +435,8 @@ export default function SalesPage() {
                             </FormItem>
                           )}
                         />
-                        <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-                          Gerar Cupons
+                        <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isSubmittingSale}>
+                           {isSubmittingSale ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Gerando...</> : 'Gerar Cupons'}
                         </Button>
                       </form>
                     </Form>
@@ -421,14 +466,14 @@ export default function SalesPage() {
                               </FormItem>
                             )}
                           />
-                          <Button type="submit" className="mt-8">
-                            <Search className="mr-2 h-4 w-4" />
+                          <Button type="submit" className="mt-8" disabled={isSearchingCoupons}>
+                            {isSearchingCoupons ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                             Buscar
                           </Button>
                       </form>
                     </Form>
 
-                    {viewingCpf && (
+                    {viewingCpf && !isSearchingCoupons && (
                       <div>
                         <h3 className="mb-4 text-lg font-medium">Cupons para o CPF: <span className="font-bold text-primary">{viewingCpf}</span> ({myCoupons.length})</h3>
                         {myCoupons.length > 0 ? (
