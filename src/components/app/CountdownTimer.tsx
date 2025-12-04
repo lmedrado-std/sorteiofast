@@ -13,7 +13,10 @@ interface TimeLeft {
 
 export default function CountdownTimer({ targetDate }: { targetDate: string }) {
   const calculateTimeLeft = (): TimeLeft => {
-    const difference = +new Date(targetDate) - +new Date();
+    // A data pode vir como 'YYYY-MM-DDTHH:mm:ss' ou 'YYYY-MM-DDTHH:mm'
+    // Adicionar 'Z' garante que seja interpretada como UTC se não houver fuso horário
+    const safeTargetDate = targetDate.endsWith('Z') ? targetDate : `${targetDate}Z`;
+    const difference = +new Date(safeTargetDate) - +new Date();
     let timeLeft: TimeLeft = {};
 
     if (difference > 0) {
@@ -29,9 +32,11 @@ export default function CountdownTimer({ targetDate }: { targetDate: string }) {
   };
 
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({});
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    // Set initial value on client mount to avoid hydration mismatch
+    // Garante que o código só rode no cliente para evitar hydration mismatch
+    setIsClient(true);
     setTimeLeft(calculateTimeLeft());
 
     const timer = setInterval(() => {
@@ -39,6 +44,7 @@ export default function CountdownTimer({ targetDate }: { targetDate: string }) {
     }, 1000);
 
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetDate]);
 
 
@@ -54,6 +60,24 @@ export default function CountdownTimer({ targetDate }: { targetDate: string }) {
   ) : (
     <div className="text-2xl font-bold text-primary">Campanha Encerrada!</div>
   );
+
+  if (!isClient) {
+    return (
+        <Card className="w-full shadow-lg">
+            <CardHeader className="text-center">
+                <CardTitle className="flex items-center justify-center gap-2 text-xl font-headline">
+                <TimerIcon className="w-5 h-5 text-accent" />
+                Fim da Campanha em
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="flex justify-around gap-4 h-[76px] items-center">
+                    <p>Carregando...</p>
+                </div>
+            </CardContent>
+        </Card>
+    );
+  }
 
   return (
     <Card className="w-full shadow-lg">

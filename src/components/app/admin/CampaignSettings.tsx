@@ -32,11 +32,14 @@ export default function CampaignSettings({ currentConfig, onSave }: CampaignSett
   });
 
   const onSubmit = (data: z.infer<typeof settingsSchema>) => {
-    // Convert the local datetime-local string back to an ISO string
-    const endDate = parse(data.campaignEndDate, "yyyy-MM-dd'T'HH:mm", new Date()).toISOString();
+    // Converte a data local do input para um objeto Date
+    const localDate = parse(data.campaignEndDate, "yyyy-MM-dd'T'HH:mm", new Date());
+    // Formata a data para uma string ISO 8601 completa (YYYY-MM-DDTHH:mm:ssZ)
+    const isoDateString = localDate.toISOString();
+    
     onSave({
         couponValueThreshold: data.couponValueThreshold,
-        campaignEndDate: endDate.slice(0, 19) // Format to 'YYYY-MM-DDTHH:mm:ss'
+        campaignEndDate: isoDateString
     });
   };
 
