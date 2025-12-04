@@ -42,17 +42,41 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     setIsClient(true);
+    // Load initial data
     setAllCoupons(getFromStorage<Coupon>('supersorteios_coupons'));
     setAllSales(getFromStorage<Sale>('supersorteios_sales'));
     setWinnersHistory(getFromStorage<Winner[]>('supersorteios_winners_history'));
     const savedConfig = getObjectFromStorage<CampaignConfig>('supersorteios_config');
     if (savedConfig) {
-      // Ensure date is a Date object
-      setCampaignConfig({
-        ...savedConfig,
-        campaignEndDate: new Date(savedConfig.campaignEndDate),
-      });
+      setCampaignConfig(savedConfig);
     }
+  }, []);
+  
+  useEffect(() => {
+    // Listen for storage changes from other tabs
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'supersorteios_coupons') {
+        setAllCoupons(getFromStorage<Coupon>('supersorteios_coupons'));
+      }
+      if (event.key === 'supersorteios_sales') {
+        setAllSales(getFromStorage<Sale>('supersorteios_sales'));
+      }
+      if (event.key === 'supersorteios_winners_history') {
+        setWinnersHistory(getFromStorage<Winner[]>('supersorteios_winners_history'));
+      }
+      if (event.key === 'supersorteios_config') {
+        const savedConfig = getObjectFromStorage<CampaignConfig>('supersorteios_config');
+        if (savedConfig) {
+          setCampaignConfig(savedConfig);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const handleRaffleConducted = (newWinners: Winner[]) => {
