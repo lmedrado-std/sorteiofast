@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'Supermoda Coupons',
+  title: 'SuperSorteios',
   description: 'Gere cupons de suas vendas e concorra a prêmios!',
 };
 

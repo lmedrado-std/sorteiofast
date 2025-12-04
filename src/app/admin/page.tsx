@@ -16,7 +16,7 @@ const getFromStorage = <T>(key: string): T[] => {
   const data = localStorage.getItem(key);
   if (!data) return [];
   const items = JSON.parse(data);
-  if (key === 'supermoda_sales') {
+  if (key === 'supersorteios_sales') {
     return items.map((item: any) => ({ ...item, date: new Date(item.date) }));
   }
   return items;
@@ -29,8 +29,8 @@ export default function AdminPage() {
   useEffect(() => {
     // In a real app, this data would be fetched from a secure backend.
     // For this demo, we are reading from localStorage.
-    setAllCoupons(getFromStorage<Coupon>('supermoda_coupons'));
-    setAllSales(getFromStorage<Sale>('supermoda_sales'));
+    setAllCoupons(getFromStorage<Coupon>('supersorteios_coupons'));
+    setAllSales(getFromStorage<Sale>('supersorteios_sales'));
   }, []);
 
   const getSaleForCoupon = (coupon: Coupon) => {

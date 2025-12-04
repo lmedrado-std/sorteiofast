@@ -52,7 +52,7 @@ const getFromStorage = <T>(key: string): T[] => {
   const data = localStorage.getItem(key);
   if (!data) return [];
   const items = JSON.parse(data);
-  if (key === 'supermoda_sales') {
+  if (key === 'supersorteios_sales') {
     return items.map((item: any) => ({ ...item, date: new Date(item.date) }));
   }
   return items;
@@ -72,14 +72,14 @@ export default function SalesPage() {
   const [myCoupons, setMyCoupons] = useState<Coupon[]>([]);
 
   useEffect(() => {
-    let id = localStorage.getItem('supermoda_employeeId');
+    let id = localStorage.getItem('supersorteios_employeeId');
     if (!id) {
       id = `EMP-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
-      localStorage.setItem('supermoda_employeeId', id);
+      localStorage.setItem('supersorteios_employeeId', id);
     }
     setEmployeeId(id);
 
-    const allCoupons = getFromStorage<Coupon>('supermoda_coupons');
+    const allCoupons = getFromStorage<Coupon>('supersorteios_coupons');
     setMyCoupons(allCoupons.filter(c => c.employeeId === id));
   }, []);
 
@@ -114,8 +114,8 @@ export default function SalesPage() {
             employeeId,
         }));
         
-        addToStorage('supermoda_sales', sale);
-        addToStorage('supermoda_coupons', newCoupons);
+        addToStorage('supersorteios_sales', sale);
+        addToStorage('supersorteios_coupons', newCoupons);
         setMyCoupons(prev => [...prev, ...newCoupons]);
 
         toast({
@@ -124,7 +124,7 @@ export default function SalesPage() {
             action: <div className="p-2 bg-green-500 rounded-full"><VerifiedIcon className="text-white" /></div>
         });
     } else {
-        addToStorage('supermoda_sales', sale);
+        addToStorage('supersorteios_sales', sale);
         toast({
             title: "Venda Registrada",
             description: "A venda foi registrada, mas o valor não foi suficiente para gerar um cupom (mínimo R$ 250).",
@@ -244,7 +244,7 @@ export default function SalesPage() {
                           </FormItem>
                         )}
                       />
-                      <Button type="submit" className="w-full bg-accent hover:bg-accent/90">
+                      <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
                         Gerar Cupons
                       </Button>
                     </form>

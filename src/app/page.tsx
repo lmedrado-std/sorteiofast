@@ -17,7 +17,7 @@ export default function Home() {
       <main className="flex-1">
         <section className="container mx-auto px-4 py-12 md:py-24 text-center">
           <h1 className="text-4xl md:text-6xl font-bold font-headline tracking-tight text-primary">
-            Campanha de Vendas Supermoda
+            Campanha de Vendas SuperSorteios
           </h1>
           <p className="mt-4 max-w-2xl mx-auto text-lg md:text-xl text-foreground/80">
             Registre suas vendas, gere cupons e concorra a prêmios incríveis.
@@ -90,7 +90,7 @@ export default function Home() {
         </section>
       </main>
       <footer className="text-center p-4 text-sm text-foreground/60">
-        <p>&copy; {new Date().getFullYear()} Supermoda. Todos os direitos reservados.</p>
+        <p>&copy; {new Date().getFullYear()} SuperSorteios. Todos os direitos reservados.</p>
       </footer>
     </div>
   );

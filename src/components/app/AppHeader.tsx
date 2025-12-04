@@ -8,7 +8,7 @@ export default function AppHeader() {
         <Link href="/" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
           <TicketPercent className="w-8 h-8" />
           <span className="text-xl font-bold font-headline tracking-tight">
-            Cupons Supermoda
+            SuperSorteios
           </span>
         </Link>
       </div>
