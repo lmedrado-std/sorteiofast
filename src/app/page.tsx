@@ -1,19 +1,16 @@
-import Image from "next/image";
-import Link from "next/link";
-import { ArrowRight, ShieldCheck, Users, TicketPercent } from "lucide-react";
 
-import { PlaceHolderImages } from "@/lib/placeholder-images";
+import Link from "next/link";
+import { ArrowRight, ShieldCheck, Users } from "lucide-react";
+
 import AppHeader from "@/components/app/AppHeader";
 
 export default function Home() {
-  const employeeImage = PlaceHolderImages.find(p => p.id === 'employee-area');
-  const adminImage = PlaceHolderImages.find(p => p.id === 'admin-area');
 
   return (
     <div className="flex flex-col min-h-screen">
       <AppHeader />
       <main className="flex-1">
-        <section className="container mx-auto px-4 py-12 md:py-24 text-center">
+        <section className="container mx-auto px-4 py-12 md:py-16 text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-primary">
             Campanha de Vendas SuperSorteios
           </h1>
@@ -23,8 +20,8 @@ export default function Home() {
           </p>
         </section>
 
-        <section className="container mx-auto px-4 pb-12 md:pb-24">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <section className="container mx-auto px-4 pb-12 md:pb-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             
             <article className="group flex flex-col overflow-hidden rounded-2xl border bg-card/60 shadow-sm backdrop-blur-sm transition hover:-translate-y-1 hover:shadow-lg">
               <div className="border-b px-5 py-4 flex items-center gap-4">
@@ -41,22 +38,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {employeeImage && (
-                <div className="px-5 pt-5">
-                    <div className="relative overflow-hidden rounded-xl">
-                    <Image
-                        src={employeeImage.imageUrl}
-                        alt={employeeImage.description}
-                        data-ai-hint={employeeImage.imageHint}
-                        width={600}
-                        height={400}
-                        className="h-40 w-full object-cover transition duration-500 group-hover:scale-105"
-                    />
-                    </div>
-                </div>
-              )}
-
-              <div className="flex flex-col flex-grow px-5 pb-5 pt-4 space-y-4">
+              <div className="flex flex-col flex-grow p-5 space-y-4">
                 <p className="text-sm text-muted-foreground flex-grow">
                   Acesse para registrar suas vendas, acompanhar seus cupons gerados
                   e visualizar seu desempenho na campanha.
@@ -86,22 +68,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {adminImage && (
-                <div className="px-5 pt-5">
-                    <div className="relative overflow-hidden rounded-xl">
-                    <Image
-                        src={adminImage.imageUrl}
-                        alt={adminImage.description}
-                        data-ai-hint={adminImage.imageHint}
-                        width={600}
-                        height={400}
-                        className="h-40 w-full object-cover transition duration-500 group-hover:scale-105"
-                    />
-                    </div>
-                </div>
-              )}
-
-              <div className="flex flex-col flex-grow px-5 pb-5 pt-4 space-y-4">
+              <div className="flex flex-col flex-grow p-5 space-y-4">
                 <p className="text-sm text-muted-foreground flex-grow">
                   Gerencie cupons, defina regras da campanha e realize sorteios de forma segura.
                 </p>
