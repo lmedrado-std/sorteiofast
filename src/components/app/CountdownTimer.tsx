@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -13,10 +14,10 @@ interface TimeLeft {
 
 export default function CountdownTimer({ targetDate }: { targetDate: string }) {
   const calculateTimeLeft = (): TimeLeft => {
-    // A data pode vir como 'YYYY-MM-DDTHH:mm:ss' ou 'YYYY-MM-DDTHH:mm'
-    // Adicionar 'Z' garante que seja interpretada como UTC se não houver fuso horário
-    const safeTargetDate = targetDate.endsWith('Z') ? targetDate : `${targetDate}Z`;
-    const difference = +new Date(safeTargetDate) - +new Date();
+    // Garante que a string de data seja tratada como UTC, adicionando 'Z' se não estiver presente.
+    // Isso evita problemas de fuso horário em que o navegador pode interpretar a data como local.
+    const utcTargetDate = targetDate.endsWith('Z') ? targetDate : `${targetDate}Z`;
+    const difference = +new Date(utcTargetDate) - +new Date();
     let timeLeft: TimeLeft = {};
 
     if (difference > 0) {
