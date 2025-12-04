@@ -202,253 +202,280 @@ export default function SalesPage() {
   }
 
   if (!isClient) {
-    return <div className="flex justify-center items-center h-screen"><p>Carregando...</p></div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <p className="text-sm text-muted-foreground">Carregando painel...</p>
+      </div>
+    );
   }
   
   return (
     <div className="flex flex-col min-h-screen">
       <AppHeader />
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto flex flex-col gap-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className='flex items-center gap-2'>
-                <User /> Painel do Funcionário
-              </CardTitle>
-              <CardDescription>
-                Registre vendas para gerar cupons e consulte seus cupons existentes.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-          
-          <CountdownTimer targetDate={campaignConfig.campaignEndDate} />
+      <main className="flex-1 bg-gradient-to-b from-slate-50 to-white">
+        <div className="container mx-auto px-4 py-8 md:py-12">
+          <div className="mx-auto flex max-w-3xl flex-col gap-8">
 
-          <Tabs defaultValue="sales" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="sales">
-                <PlusCircle className="mr-2 h-4 w-4" /> Registrar Venda
-              </TabsTrigger>
-              <TabsTrigger value="coupons">
-                <Ticket className="mr-2 h-4 w-4" /> Meus Cupons
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="sales">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Nova Venda</CardTitle>
-                  <CardDescription>
-                    Preencha os dados da venda. Para cada R$ {campaignConfig.couponValueThreshold},00, um cupom será gerado.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {!isCampaignActive ? (
-                      <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed rounded-lg bg-muted/50">
-                        <AlertTriangle className="w-12 h-12 text-destructive" />
-                        <h3 className="text-xl font-bold">Campanha Encerrada</h3>
-                        <p className="text-muted-foreground">O período para registrar novas vendas terminou. Não é mais possível gerar cupons.</p>
-                      </div>
-                  ) : (
-                  <Form {...saleForm}>
-                    <form onSubmit={saleForm.handleSubmit(onSaleSubmit)} className="space-y-4">
-                      <FormField
-                        control={saleForm.control}
-                        name="sellerName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nome do Vendedor</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Ex: João da Silva" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                       <FormField
-                        control={saleForm.control}
-                        name="cpf"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>CPF</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Digite seu CPF (apenas números)" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={saleForm.control}
-                        name="store"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Loja</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione a loja" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="Supermoda Dias D'Ávila">Supermoda Dias D'Ávila</SelectItem>
-                                <SelectItem value="Supermoda Catu">Supermoda Catu</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={saleForm.control}
-                        name="value"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Valor da Venda (R$)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                placeholder="Ex: 1050,75"
-                                {...field}
-                                onBlur={(e) => {
-                                   field.onBlur();
-                                   const value = parseFloat(e.target.value.replace(',', '.')) || 0;
-                                   saleForm.setValue('value', value, { shouldValidate: true });
-                                 }}
-                                 onChange={(e) => {
-                                   const value = e.target.value;
-                                   // Allow only numbers and one comma
-                                   if (/^[\d,]*$/.test(value) && (value.match(/,/g) || []).length <= 1) {
-                                      field.onChange(value);
-                                   }
-                                 }}
-                                 // Display the formatted value
-                                 value={
-                                    typeof field.value === 'number' && field.value > 0
-                                      ? String(field.value).replace('.', ',')
-                                      : field.value === 0 ? '' : field.value
-                                  }
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={saleForm.control}
-                        name="date"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-col">
-                            <FormLabel>Data da Venda</FormLabel>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <FormControl>
-                                  <Button
-                                    variant={'outline'}
-                                    className={cn(
-                                      'w-full pl-3 text-left font-normal',
-                                      !field.value && 'text-muted-foreground'
-                                    )}
-                                  >
-                                    {field.value ? (
-                                      format(field.value, 'PPP', { locale: ptBR })
-                                    ) : (
-                                      <span>Escolha uma data</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </Button>
-                                </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                  mode="single"
-                                  selected={field.value}
-                                  onSelect={field.onChange}
-                                  disabled={(date) =>
-                                    date > new Date(campaignConfig.campaignEndDate) || date < new Date('2024-01-01')
-                                  }
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-                        Gerar Cupons
-                      </Button>
-                    </form>
-                  </Form>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="coupons">
-              <Card>
-                 <CardHeader>
-                    <CardTitle>Consultar Meus Cupons</CardTitle>
-                    <CardDescription>Digite seu CPF para ver todos os cupons que você gerou.</CardDescription>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+                  <User className="h-5 w-5 text-primary" /> Painel do Funcionário
+                </CardTitle>
+                <CardDescription className="mt-1 text-sm md:text-base">
+                  Registre vendas para gerar cupons e consulte seus cupons já gerados nesta campanha.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          
+            <CountdownTimer targetDate={campaignConfig.campaignEndDate} />
+
+            <Tabs defaultValue="sales" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted/60 p-1">
+                <TabsTrigger value="sales" className="flex items-center justify-center gap-1 text-xs md:text-sm">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Registrar Venda
+                </TabsTrigger>
+                <TabsTrigger value="coupons" className="flex items-center justify-center gap-1 text-xs md:text-sm">
+                  <Ticket className="mr-2 h-4 w-4" /> Meus Cupons
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="sales">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Nova Venda</CardTitle>
+                    <CardDescription>
+                      Preencha os dados da venda. Para cada R$ {campaignConfig.couponValueThreshold},00, um cupom será gerado.
+                    </CardDescription>
                   </CardHeader>
-                <CardContent className="space-y-6">
-                  <Form {...couponQueryForm}>
-                    <form onSubmit={couponQueryForm.handleSubmit(onCouponQuerySubmit)} className="flex items-start gap-2">
-                       <FormField
-                          control={couponQueryForm.control}
-                          name="cpf"
+                  <CardContent>
+                    {!isCampaignActive ? (
+                        <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed rounded-lg bg-muted/50">
+                          <AlertTriangle className="w-12 h-12 text-destructive" />
+                          <h3 className="text-xl font-bold">Campanha Encerrada</h3>
+                          <p className="text-muted-foreground">O período para registrar novas vendas terminou. Não é mais possível gerar cupons.</p>
+                        </div>
+                    ) : (
+                    <Form {...saleForm}>
+                      <form onSubmit={saleForm.handleSubmit(onSaleSubmit)} className="space-y-4">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <FormField
+                            control={saleForm.control}
+                            name="sellerName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Nome do Vendedor</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Ex: João da Silva" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={saleForm.control}
+                            name="cpf"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>CPF</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Digite seu CPF (apenas números)" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <FormField
+                            control={saleForm.control}
+                            name="store"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Loja</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecione a loja" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="Supermoda Dias D'Ávila">Supermoda Dias D'Ávila</SelectItem>
+                                    <SelectItem value="Supermoda Catu">Supermoda Catu</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={saleForm.control}
+                            name="value"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Valor da Venda (R$)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="Ex: 1050,75"
+                                    {...field}
+                                    onBlur={(e) => {
+                                      field.onBlur();
+                                      const value = parseFloat(e.target.value.replace(',', '.')) || 0;
+                                      saleForm.setValue('value', value, { shouldValidate: true });
+                                    }}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      // Allow only numbers and one comma
+                                      if (/^[\d,]*$/.test(value) && (value.match(/,/g) || []).length <= 1) {
+                                        field.onChange(value);
+                                      }
+                                    }}
+                                    // Display the formatted value
+                                    value={
+                                        typeof field.value === 'number' && field.value > 0
+                                        ? String(field.value).replace('.', ',')
+                                        : field.value === 0 ? '' : field.value
+                                      }
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={saleForm.control}
+                          name="date"
                           render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormLabel>CPF</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Digite seu CPF (apenas números)" {...field} />
-                              </FormControl>
+                            <FormItem className="flex flex-col">
+                              <FormLabel>Data da Venda</FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant={'outline'}
+                                      className={cn(
+                                        'w-full pl-3 text-left font-normal',
+                                        !field.value && 'text-muted-foreground'
+                                      )}
+                                    >
+                                      {field.value ? (
+                                        format(field.value, 'PPP', { locale: ptBR })
+                                      ) : (
+                                        <span>Escolha uma data</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={field.onChange}
+                                    disabled={(date) =>
+                                      date > new Date(campaignConfig.campaignEndDate) || date < new Date('2024-01-01')
+                                    }
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
-                        <Button type="submit" className="mt-8">
-                          <Search className="mr-2 h-4 w-4" />
-                          Buscar
+                        <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                          Gerar Cupons
                         </Button>
-                    </form>
-                  </Form>
+                      </form>
+                    </Form>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="coupons">
+                <Card>
+                  <CardHeader>
+                      <CardTitle>Consultar Meus Cupons</CardTitle>
+                      <CardDescription>Digite seu CPF para ver todos os cupons que você gerou.</CardDescription>
+                    </CardHeader>
+                  <CardContent className="space-y-6">
+                    <Form {...couponQueryForm}>
+                      <form onSubmit={couponQueryForm.handleSubmit(onCouponQuerySubmit)} className="flex items-start gap-2">
+                        <FormField
+                            control={couponQueryForm.control}
+                            name="cpf"
+                            render={({ field }) => (
+                              <FormItem className="flex-1">
+                                <FormLabel>CPF</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Digite seu CPF (apenas números)" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <Button type="submit" className="mt-8">
+                            <Search className="mr-2 h-4 w-4" />
+                            Buscar
+                          </Button>
+                      </form>
+                    </Form>
 
-                  {viewingCpf && (
-                    <div>
-                      <h3 className="mb-4 text-lg font-medium">Cupons para o CPF: <span className="font-bold text-primary">{viewingCpf}</span> ({myCoupons.length})</h3>
-                       {myCoupons.length > 0 ? (
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <AnimatePresence>
-                            {myCoupons.map((coupon, index) => (
-                               <motion.div
-                                 key={coupon.id}
-                                 initial={{ opacity: 0, y: 20 }}
-                                 animate={{ opacity: 1, y: 0 }}
-                                 transition={{ delay: index * 0.05 }}
-                                 className="bg-secondary/50 p-3 rounded-lg flex flex-col gap-2 border-l-4 border-primary"
-                               >
-                                <div className="flex items-center gap-3">
-                                  <Ticket className="w-6 h-6 text-accent flex-shrink-0" />
-                                  <span className="font-mono text-sm font-semibold flex-grow">{coupon.id}</span>
-                                </div>
-                                {coupon.sale && (
-                                    <div className="text-xs text-muted-foreground flex justify-between items-center pl-9">
-                                        <span>Valor: <span className="font-medium text-foreground">R$ {coupon.sale.value.toFixed(2)}</span></span>
-                                        <span>Data: <span className="font-medium text-foreground">{format(new Date(coupon.sale.date), 'dd/MM/yy', { locale: ptBR })}</span></span>
+                    {viewingCpf && (
+                      <div>
+                        <h3 className="mb-4 text-lg font-medium">Cupons para o CPF: <span className="font-bold text-primary">{viewingCpf}</span> ({myCoupons.length})</h3>
+                        {myCoupons.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <AnimatePresence>
+                              {myCoupons.map((coupon, index) => (
+                                <motion.div
+                                  key={coupon.id}
+                                  initial={{ opacity: 0, y: 12 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: index * 0.04 }}
+                                  className="flex flex-col gap-2 rounded-xl border border-primary/10 bg-card/80 p-3 shadow-sm"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                                      <Ticket className="h-4 w-4 text-primary" />
                                     </div>
-                                )}
-                               </motion.div>
-                            ))}
-                            </AnimatePresence>
-                         </div>
-                      ) : (
-                        <p className="text-center text-muted-foreground py-8">Nenhum cupom encontrado para este CPF.</p>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                                    <span className="flex-grow font-mono text-xs md:text-sm font-semibold truncate">
+                                      {coupon.id}
+                                    </span>
+                                  </div>
+                                  {coupon.sale && (
+                                    <div className="mt-1 flex justify-between gap-2 text-[11px] md:text-xs text-muted-foreground">
+                                      <span>
+                                        Valor:{' '}
+                                        <span className="font-medium text-foreground">
+                                          R$ {coupon.sale.value.toFixed(2)}
+                                        </span>
+                                      </span>
+                                      <span>
+                                        Data:{' '}
+                                        <span className="font-medium text-foreground">
+                                          {format(new Date(coupon.sale.date), 'dd/MM/yy', { locale: ptBR })}
+                                        </span>
+                                      </span>
+                                    </div>
+                                  )}
+                                </motion.div>
+                              ))}
+                              </AnimatePresence>
+                          </div>
+                        ) : (
+                          <p className="text-center text-muted-foreground py-8">Nenhum cupom encontrado para este CPF.</p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
       </main>
     </div>
