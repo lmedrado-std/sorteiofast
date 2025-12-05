@@ -121,6 +121,22 @@ export default function AdminDashboardPage() {
     deleteDocumentNonBlocking(couponDocRef);
     toast({ title: "Cupom excluído!", description: `O cupom ${couponId} foi removido.` });
   };
+  
+  const handleDeleteCouponsByEmployee = async (employeeId: string, employeeName?: string) => {
+    const couponsToDelete = allCoupons.filter(c => c.employeeId === employeeId);
+    if (couponsToDelete.length === 0) return;
+
+    const batch = writeBatch(db);
+    couponsToDelete.forEach(coupon => {
+      batch.delete(doc(db, 'coupons', coupon.id));
+    });
+    await batch.commit();
+    toast({ 
+      title: "Cupons do vendedor excluídos!",
+      description: `Todos os ${couponsToDelete.length} cupons de ${employeeName || 'vendedor selecionado'} foram removidos.`,
+      variant: "destructive"
+    });
+  };
 
   const handleDeleteAllCoupons = async () => {
     if (allCoupons.length === 0) return;
@@ -225,6 +241,7 @@ export default function AdminDashboardPage() {
         allCoupons={allCoupons} 
         allSales={allSales}
         onDeleteCoupon={handleDeleteCoupon}
+        onDeleteCouponsByEmployee={handleDeleteCouponsByEmployee}
       />
 
     </div>
