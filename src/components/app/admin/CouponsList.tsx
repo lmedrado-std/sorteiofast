@@ -109,41 +109,41 @@ export default function CouponsList({ allCoupons, allSales, onDeleteCoupon, onDe
               const group = groupedCoupons[employeeId];
               return (
                 <AccordionItem value={employeeId} key={employeeId} className="border rounded-md px-4 bg-secondary/30">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className='flex flex-col sm:flex-row sm:items-center justify-between w-full pr-4 gap-2'>
-                        <div className='flex items-center gap-3 text-left'>
-                            <User className="w-5 h-5 text-primary"/>
-                            <div className='flex flex-col'>
-                                <span className='font-semibold'>{group.sellerName}</span>
-                                <span className='text-xs text-muted-foreground font-mono'>{group.cpf}</span>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <Badge variant="secondary">{group.items.length} cupo{group.items.length > 1 ? 'ns' : 'm'}</Badge>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive">
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Excluir todos os cupons de {group.sellerName}?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Tem certeza que deseja excluir todos os <strong>{group.items.length}</strong> cupons de {group.sellerName}? Essa ação não pode ser desfeita.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => onDeleteCouponsByEmployee(employeeId, group.sellerName)} className="bg-destructive hover:bg-destructive/90">
-                                        Excluir Todos
-                                    </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </div>
-                    </div>
-                  </AccordionTrigger>
+                  <div className="flex items-center w-full">
+                    <AccordionTrigger className="hover:no-underline flex-1">
+                      <div className='flex flex-col sm:flex-row sm:items-center gap-2 text-left'>
+                          <User className="w-5 h-5 text-primary"/>
+                          <div className='flex flex-col'>
+                              <span className='font-semibold'>{group.sellerName}</span>
+                              <span className='text-xs text-muted-foreground font-mono'>{group.cpf}</span>
+                          </div>
+                          <Badge variant="secondary" className="ml-0 sm:ml-2 w-fit">{group.items.length} cupo{group.items.length > 1 ? 'ns' : 'm'}</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0">
+                                <span className="sr-only">Excluir todos os cupons de {group.sellerName}</span>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir todos os cupons de {group.sellerName}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Tem certeza que deseja excluir todos os <strong>{group.items.length}</strong> cupons de {group.sellerName}? Essa ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDeleteCouponsByEmployee(employeeId, group.sellerName)} className="bg-destructive hover:bg-destructive/90">
+                                Excluir Todos
+                            </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                   <AccordionContent>
                     <div className="border-t mt-2 pt-2">
                         <Table>
