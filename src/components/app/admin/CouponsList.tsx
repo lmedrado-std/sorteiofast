@@ -117,28 +117,28 @@ export default function CouponsList({ allCoupons, allSales, onDeleteCoupon, onDe
                               <span className='font-semibold'>{group.sellerName}</span>
                               <span className='text-xs text-muted-foreground font-mono'>{group.cpf}</span>
                           </div>
-                          <Badge variant="secondary" className="ml-0 sm:ml-2 w-fit">{group.items.length} cupo{group.items.length > 1 ? 'ns' : 'm'}</Badge>
+                          <Badge variant="secondary" className="ml-0 sm:ml-2 w-fit">{group.items.length} cupom{group.items.length > 1 ? 'ns' : 'm'}</Badge>
                       </div>
                     </AccordionTrigger>
                     
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0">
-                                <span className="sr-only">Excluir todos os cupons de {group.sellerName}</span>
+                                <span className="sr-only">Excluir todos os dados de {group.sellerName}</span>
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir todos os cupons de {group.sellerName}?</AlertDialogTitle>
+                            <AlertDialogTitle>Excluir dados de {group.sellerName}?</AlertDialogTitle>
                             <AlertDialogDescription>
-                                Tem certeza que deseja excluir todos os <strong>{group.items.length}</strong> cupons de {group.sellerName}? Essa ação não pode ser desfeita.
+                                Tem certeza que deseja excluir todos os <strong>{group.items.length}</strong> cupons e as vendas associadas de {group.sellerName}? Essa ação não pode ser desfeita.
                             </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                             <AlertDialogAction onClick={() => onDeleteCouponsByEmployee(employeeId, group.sellerName)} className="bg-destructive hover:bg-destructive/90">
-                                Excluir Todos
+                                Excluir Tudo
                             </AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>

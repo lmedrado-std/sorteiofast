@@ -125,16 +125,31 @@ export default function AdminDashboardPage() {
   
   const handleDeleteCouponsByEmployee = async (employeeId: string, employeeName?: string) => {
     const couponsToDelete = allCoupons.filter(c => c.employeeId === employeeId);
-    if (couponsToDelete.length === 0) return;
+    const salesToDelete = allSales.filter(s => s.employeeId === employeeId);
+
+    if (couponsToDelete.length === 0 && salesToDelete.length === 0) {
+      toast({
+        title: "Nenhum dado para excluir",
+        description: `Não foram encontrados cupons ou vendas para ${employeeName || 'vendedor selecionado'}.`
+      });
+      return;
+    }
 
     const batch = writeBatch(db);
+
     couponsToDelete.forEach(coupon => {
       batch.delete(doc(db, 'coupons', coupon.id));
     });
+
+    salesToDelete.forEach(sale => {
+        batch.delete(doc(db, 'sales', sale.id));
+    });
+
     await batch.commit();
+
     toast({ 
-      title: "Cupons do vendedor excluídos!",
-      description: `Todos os ${couponsToDelete.length} cupons de ${employeeName || 'vendedor selecionado'} foram removidos.`,
+      title: "Dados do vendedor excluídos!",
+      description: `Todos os cupons e vendas de ${employeeName || 'vendedor selecionado'} foram removidos.`,
       variant: "destructive"
     });
   };
@@ -216,7 +231,7 @@ export default function AdminDashboardPage() {
                    <AlertDialogDescription>
                     Essa ação limpará todo o histórico de sorteios. Os cupons não serão afetados.
                   </AlertDialogDescription>
-                </AlertDialogHeader>
+                </GraphQLHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
                   <AlertDialogAction onClick={handleDeleteWinnersHistory}>
