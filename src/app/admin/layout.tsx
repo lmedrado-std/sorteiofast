@@ -73,7 +73,7 @@ export default function AdminLayout({
       <SidebarInset>
         <div className="flex h-14 items-center gap-2 border-b bg-background p-2">
           <SidebarTrigger className="md:hidden" />
-          <h1 className="text-lg font-semibold tracking-tight text-primary flex items-center gap-2">
+          <h1 className="text-xl font-semibold tracking-tight text-primary flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2">
               <Home className="h-5 w-5" />
               SuperSorteios

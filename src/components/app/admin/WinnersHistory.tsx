@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,10 +7,33 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { History, Trophy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Timestamp } from 'firebase/firestore';
+
+// Tipagem correta para o documento de histórico, incluindo a data do sorteio
+type WinnerHistoryDoc = {
+  id: string;
+  winners: Winner[];
+  date: Timestamp; // A data em que o sorteio foi realizado
+};
 
 interface WinnersHistoryProps {
-  // The collection data is an array of objects, where each object has a `winners` property
-  historyData: { id: string, winners: Winner[] }[];
+  historyData: WinnerHistoryDoc[];
+}
+
+// Helper de formatação de data seguro
+function safeFormatDate(raw: any, formatString: string): string {
+  if (!raw) return "Data inválida";
+
+  let date: Date;
+  if (raw instanceof Timestamp) {
+    date = raw.toDate();
+  } else {
+    date = new Date(raw);
+  }
+
+  if (isNaN(date.getTime())) return "Data inválida";
+  
+  return format(date, formatString, { locale: ptBR });
 }
 
 export default function WinnersHistory({ historyData }: WinnersHistoryProps) {
@@ -43,16 +65,16 @@ export default function WinnersHistory({ historyData }: WinnersHistoryProps) {
       <CardContent>
         <Accordion type="single" collapsible className="w-full">
           {historyData.map((raffleDoc, index) => {
-            const raffle = raffleDoc.winners;
-            if (!raffle || raffle.length === 0) return null;
+            if (!raffleDoc.winners || raffleDoc.winners.length === 0) return null;
             return (
             <AccordionItem value={`item-${index}`} key={raffleDoc.id}>
               <AccordionTrigger>
-                Sorteio de {format(new Date(raffle[0].date), 'dd/MM/yyyy \'às\' HH:mm')} - {raffle.length} ganhador(es)
+                {/* Usa a data do documento do sorteio e formata com segurança */}
+                Sorteio de {safeFormatDate(raffleDoc.date, "dd/MM/yyyy 'às' HH:mm")} - {raffleDoc.winners.length} ganhador(es)
               </AccordionTrigger>
               <AccordionContent>
                 <ul className="space-y-3 pt-2">
-                  {raffle.map((winner) => (
+                  {raffleDoc.winners.map((winner) => (
                     <li
                       key={winner.couponId}
                       className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-secondary/50 p-3 rounded-lg"
@@ -63,7 +85,8 @@ export default function WinnersHistory({ historyData }: WinnersHistoryProps) {
                         <span className="text-xs text-muted-foreground">{winner.store}</span>
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mt-1">
                             <span>Venda: <span className="font-medium">R$ {Number(winner.saleValue).toFixed(2)}</span></span>
-                            <span>Data: <span className="font-medium">{format(new Date(winner.saleDate), 'dd/MM/yyyy', { locale: ptBR })}</span></span>
+                            {/* Usa a data da venda do ganhador e formata com segurança */}
+                            <span>Data: <span className="font-medium">{safeFormatDate(winner.saleDate, 'dd/MM/yyyy')}</span></span>
                         </div>
                       </div>
                       <Badge className="font-mono text-xs" variant="outline">{winner.couponId}</Badge>

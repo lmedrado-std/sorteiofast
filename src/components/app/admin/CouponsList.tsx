@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Coupon, Sale } from '@/lib/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Ticket, Trash2, X } from 'lucide-react';
+import { Ticket, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -20,11 +19,31 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Timestamp } from 'firebase/firestore';
 
 interface CouponsListProps {
   allCoupons: Coupon[];
   allSales: Sale[];
   onDeleteCoupon: (couponId: string) => void;
+}
+
+// Helper para formatar a data de forma segura, tratando strings, Timestamps e valores inválidos.
+function formatSaleDate(raw: any): string {
+  if (!raw) return "-";
+
+  let date: Date;
+
+  // Converte o valor para um objeto Date, seja ele um Timestamp do Firestore ou uma string/Date.
+  if (raw instanceof Timestamp) {
+    date = raw.toDate();
+  } else {
+    date = new Date(raw);
+  }
+
+  // Se a data resultante for inválida, retorna um placeholder.
+  if (isNaN(date.getTime())) return "-";
+
+  return format(date, "dd/MM/yy HH:mm", { locale: ptBR });
 }
 
 export default function CouponsList({ allCoupons, allSales, onDeleteCoupon }: CouponsListProps) {
@@ -66,13 +85,14 @@ export default function CouponsList({ allCoupons, allSales, onDeleteCoupon }: Co
                     <TableRow key={coupon.id}>
                       <TableCell><Badge variant="outline" className="font-mono text-xs">{coupon.id}</Badge></TableCell>
                       <TableCell>{sale?.store || 'N/A'}</TableCell>
-                      <TableCell>{sale ? sale.sellerName : 'N/A'}</TableCell>
-                      <TableCell className="hidden md:table-cell font-mono text-sm">{sale ? sale.cpf : 'N/A'}</TableCell>
+                      <TableCell>{sale?.sellerName || 'N/A'}</TableCell>
+                      <TableCell className="hidden md:table-cell font-mono text-sm">{sale?.cpf || 'N/A'}</TableCell>
                       <TableCell className="hidden sm:table-cell">
                         {sale ? `R$ ${Number(sale.value).toFixed(2)}` : 'N/A'}
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        {sale ? format(new Date(sale.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}
+                        {/* Utiliza a função helper para formatar a data com segurança */}
+                        {formatSaleDate(sale?.date)}
                       </TableCell>
                       <TableCell className="text-right">
                         <AlertDialog>

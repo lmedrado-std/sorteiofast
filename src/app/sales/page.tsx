@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -8,7 +7,7 @@ import { z } from 'zod';
 import { AnimatePresence, motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { collection, query, where, getDocs, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, addDoc, Timestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -40,6 +39,7 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { cn, isCampaignActive as isCampaignStillActive } from '@/lib/utils';
 import type { Sale, Coupon } from '@/lib/types';
@@ -48,8 +48,7 @@ import CountdownTimer from '@/components/app/CountdownTimer';
 import { CalendarIcon, PlusCircle, Search, Ticket, User, VerifiedIcon, AlertTriangle, Loader2 } from 'lucide-react';
 import { CAMPAIGN_END_DATE, COUPON_VALUE_THRESHOLD } from '@/lib/config';
 import type { CampaignConfig } from '@/app/admin/dashboard/page';
-import { useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-
+import { db, addDocumentNonBlocking } from '@/firebase';
 
 const saleSchema = z.object({
   sellerName: z.string().min(1, 'Nome do vendedor é obrigatório.'),
@@ -67,39 +66,95 @@ const couponQuerySchema = z.object({
 
 type CouponWithSaleData = Coupon & { sale?: Sale };
 
+const defaultCampaignConfig: CampaignConfig = {
+  couponValueThreshold: COUPON_VALUE_THRESHOLD,
+  campaignEndDate: new Date(CAMPAIGN_END_DATE),
+};
+
 export default function SalesPage() {
   const { toast } = useToast();
-  const firestore = useFirestore();
   
   const [viewingCpf, setViewingCpf] = useState<string | null>(null);
   const [myCoupons, setMyCoupons] = useState<CouponWithSaleData[]>([]);
   const [isSearchingCoupons, setIsSearchingCoupons] = useState(false);
   const [isSubmittingSale, setIsSubmittingSale] = useState(false);
 
-  // Firestore ref and hook for campaign config
-  const configDocRef = useMemoFirebase(() => doc(firestore, 'config', 'campaign'), [firestore]);
-  const { data: campaignConfigDoc, isLoading: isLoadingConfig } = useDoc<CampaignConfig>(configDocRef);
+  const [campaignConfig, setCampaignConfig] = useState<CampaignConfig>(defaultCampaignConfig);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   
   const [isClient, setIsClient] = useState(false);
   
-  const campaignConfig = useMemo(() => {
-    if (campaignConfigDoc) {
-      return {
-        ...campaignConfigDoc,
-        campaignEndDate: new Date(campaignConfigDoc.campaignEndDate)
-      };
-    }
-    return {
-      couponValueThreshold: COUPON_VALUE_THRESHOLD,
-      campaignEndDate: new Date(CAMPAIGN_END_DATE),
-    };
-  }, [campaignConfigDoc]);
-
   const isCampaignActive = useMemo(() => isCampaignStillActive(campaignConfig.campaignEndDate), [campaignConfig.campaignEndDate]);
+
+  const summary = useMemo(() => {
+    if (!myCoupons || myCoupons.length === 0) {
+      return { count: 0, totalValue: 0 };
+    }
+    const uniqueSales = new Map<string, Sale>();
+    myCoupons.forEach(coupon => {
+      if (coupon.sale && coupon.sale.id) {
+        uniqueSales.set(coupon.sale.id, coupon.sale);
+      }
+    });
+    const totalValue = Array.from(uniqueSales.values()).reduce((acc, sale) => {
+      return acc + (sale.value || 0);
+    }, 0);
+    return { count: myCoupons.length, totalValue };
+  }, [myCoupons]);
 
   useEffect(() => {
     setIsClient(true);
+
+    async function fetchCampaignConfig() {
+      try {
+        const configRef = doc(db, 'config', 'campaign');
+        const configSnap = await getDoc(configRef);
+        if (configSnap.exists()) {
+          const docData = configSnap.data();
+          let endDate: Date;
+
+          const rawEndDate = docData.campaignEndDate;
+          if (rawEndDate instanceof Timestamp) {
+            endDate = rawEndDate.toDate();
+          } else if (typeof rawEndDate === 'string') {
+            endDate = new Date(rawEndDate);
+          } else {
+            endDate = defaultCampaignConfig.campaignEndDate;
+          }
+
+          if (isNaN(endDate.getTime())) {
+            endDate = defaultCampaignConfig.campaignEndDate;
+          }
+
+          setCampaignConfig({
+            couponValueThreshold: docData.couponValueThreshold || defaultCampaignConfig.couponValueThreshold,
+            campaignEndDate: endDate,
+          });
+        } else {
+          console.warn("Configuração da campanha não encontrada, usando valores padrão.");
+          setCampaignConfig(defaultCampaignConfig);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar configuração da campanha:", error);
+        setCampaignConfig(defaultCampaignConfig);
+      } finally {
+        setIsLoadingConfig(false);
+      }
+    }
+
+    fetchCampaignConfig();
   }, []);
+
+  useEffect(() => {
+    if (!isLoadingConfig) {
+      console.log(
+        "[CONFIG] campaignEndDate:",
+        campaignConfig.campaignEndDate.toISOString(),
+        "isActive:",
+        isCampaignStillActive(campaignConfig.campaignEndDate)
+      );
+    }
+  }, [campaignConfig, isLoadingConfig]);
 
   const saleForm = useForm<z.infer<typeof saleSchema>>({
     resolver: zodResolver(saleSchema),
@@ -124,7 +179,7 @@ export default function SalesPage() {
     setViewingCpf(data.cpf);
 
     try {
-      const couponsRef = collection(firestore, 'coupons');
+      const couponsRef = collection(db, 'coupons');
       const q = query(couponsRef, where("employeeId", "==", data.cpf));
       const couponSnap = await getDocs(q);
       const employeeCoupons = couponSnap.docs.map(doc => ({ ...doc.data() as Coupon, id: doc.id }));
@@ -138,14 +193,13 @@ export default function SalesPage() {
         return;
       }
       
-      // Batch-fetch related sales
-      const saleIds = [...new Set(employeeCoupons.map(c => c.saleId))];
+      const saleIds = [...new Set(employeeCoupons.map(c => c.saleId).filter(Boolean))];
       if (saleIds.length === 0) {
-          setMyCoupons(employeeCoupons.map(c => ({...c}))); // Show coupons even without sales
+          setMyCoupons(employeeCoupons.map(c => ({...c})));
           return;
       }
       
-      const salesRef = collection(firestore, 'sales');
+      const salesRef = collection(db, 'sales');
       const salesQuery = query(salesRef, where('__name__', 'in', saleIds));
       const salesSnap = await getDocs(salesQuery);
       const salesData = salesSnap.docs.map(doc => ({...doc.data() as Sale, id: doc.id}));
@@ -174,7 +228,6 @@ export default function SalesPage() {
 
   async function onSaleSubmit(data: z.infer<typeof saleSchema>) {
     setIsSubmittingSale(true);
-    // 1. Check if campaign is active
     if (!isCampaignActive) {
       toast({
         variant: "destructive",
@@ -185,7 +238,6 @@ export default function SalesPage() {
       return;
     }
 
-    // 2. Check if value is sufficient
     if (data.value < campaignConfig.couponValueThreshold) {
       toast({
           variant: "destructive",
@@ -197,18 +249,12 @@ export default function SalesPage() {
     }
 
     try {
-        const salesColRef = collection(firestore, 'sales');
-        const couponsColRef = collection(firestore, 'coupons');
+        const salesColRef = collection(db, 'sales');
+        const couponsColRef = collection(db, 'coupons');
         
-        // Define the sale object, but we'll get the ID after adding it.
         const saleData: Omit<Sale, 'id'> = { ...data, employeeId: data.cpf, date: data.date };
         
-        // Add the sale document and get its reference
-        const saleRef = await addDocumentNonBlocking(salesColRef, saleData);
-        if (!saleRef) {
-            throw new Error("Failed to create sale document.");
-        }
-        
+        const saleRef = await addDoc(salesColRef, saleData);
         const saleId = saleRef.id;
         const finalSale: Sale = { ...saleData, id: saleId };
 
@@ -216,26 +262,16 @@ export default function SalesPage() {
       
         let newCoupons: CouponWithSaleData[] = [];
         if (couponCount > 0) {
-            const couponPromises = [];
-            for (let i = 0; i < couponCount; i++) {
-                const newCoupon: Omit<Coupon, 'id'> = {
-                    saleId: saleId,
-                    employeeId: data.cpf,
-                };
-                // Add each coupon non-blockingly
-                couponPromises.push(addDocumentNonBlocking(couponsColRef, newCoupon));
-            }
-            const couponRefs = await Promise.all(couponPromises);
-
-            newCoupons = couponRefs.map((couponRef, i) => ({
-              id: couponRef.id,
-              saleId,
-              employeeId: data.cpf,
-              sale: finalSale,
-            }));
+          for (let i = 0; i < couponCount; i++) {
+            const newCouponData: Omit<Coupon, 'id'> = {
+                saleId: saleId,
+                employeeId: data.cpf,
+            };
+            addDocumentNonBlocking(couponsColRef, newCouponData);
+            newCoupons.push({ ...newCouponData, id: `temp-${i}`, sale: finalSale });
+          }
         }
 
-      // If the user is viewing their own coupons, update the list
       if (viewingCpf === data.cpf) {
         setMyCoupons(prev => [...prev, ...newCoupons]);
       }
@@ -245,7 +281,7 @@ export default function SalesPage() {
           description: `Venda registrada e ${couponCount} cupom(s) gerado(s)!`,
           action: <div className="p-2 bg-green-500 rounded-full"><VerifiedIcon className="text-white" /></div>
       });
-       // Reset only value and date, keep other fields
+
       saleForm.reset({
         ...saleForm.getValues(),
         value: 0,
@@ -306,7 +342,7 @@ export default function SalesPage() {
                   <CardHeader>
                     <CardTitle>Nova Venda</CardTitle>
                     <CardDescription>
-                      Preencha os dados da venda. Para cada R$ {campaignConfig.couponValueThreshold},00, um cupom será gerado.
+                      Preencha os dados da venda. Para cada R$ {campaignConfig.couponValueThreshold.toFixed(2)}, um cupom será gerado.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -389,12 +425,10 @@ export default function SalesPage() {
                                     }}
                                     onChange={(e) => {
                                       const value = e.target.value;
-                                      // Allow only numbers and one comma
                                       if (/^[\d,]*$/.test(value) && (value.match(/,/g) || []).length <= 1) {
                                         field.onChange(value);
                                       }
                                     }}
-                                    // Display the formatted value
                                     value={
                                         typeof field.value === 'number' && field.value > 0
                                         ? String(field.value).replace('.', ',')
@@ -488,46 +522,72 @@ export default function SalesPage() {
                     </Form>
 
                     {viewingCpf && !isSearchingCoupons && (
-                      <div>
-                        <h3 className="mb-4 text-lg font-medium">Cupons para o CPF: <span className="font-bold text-primary">{viewingCpf}</span> ({myCoupons.length})</h3>
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-medium">Cupons para o CPF: <span className="font-bold text-primary">{viewingCpf}</span></h3>
                         {myCoupons.length > 0 ? (
-                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                              <AnimatePresence>
-                              {myCoupons.map((coupon, index) => (
-                                <motion.div
-                                  key={coupon.id}
-                                  initial={{ opacity: 0, y: 12 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: index * 0.04 }}
-                                  className="flex flex-col gap-2 rounded-xl border border-primary/10 bg-card/80 p-3 shadow-sm"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                                      <Ticket className="h-4 w-4 text-primary" />
-                                    </div>
-                                    <span className="flex-grow font-mono text-xs md:text-sm font-semibold truncate">
-                                      {coupon.id}
-                                    </span>
-                                  </div>
-                                  {coupon.sale && (
-                                    <div className="mt-1 flex justify-between gap-2 text-[11px] md:text-xs text-muted-foreground">
-                                      <span>
-                                        Valor:{' '}
-                                        <span className="font-medium text-foreground">
-                                          R$ {coupon.sale.value.toFixed(2)}
-                                        </span>
-                                      </span>
-                                      <span>
-                                        Data:{' '}
-                                        <span className="font-medium text-foreground">
-                                          {format(new Date(coupon.sale.date), 'dd/MM/yy', { locale: ptBR })}
-                                        </span>
-                                      </span>
-                                    </div>
-                                  )}
-                                </motion.div>
-                              ))}
-                              </AnimatePresence>
+                          <div className="space-y-4">
+                            <div className="p-3 rounded-lg bg-slate-100/80 border border-slate-200/80 text-sm text-slate-600 space-y-1">
+                                <p><strong>{summary.count}</strong> cupom{summary.count > 1 ? 's' : ''} gerado{summary.count > 1 ? 's' : ''}</p>
+                                <p>Valor total em vendas: <span className="font-semibold text-slate-800">R$ {summary.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <AnimatePresence>
+                                {myCoupons.map((coupon, index) => {
+                                  const rawDate = coupon.sale?.date;
+                                  let dateValue = null;
+                                  if (rawDate) {
+                                      if (rawDate instanceof Timestamp) {
+                                          dateValue = rawDate.toDate();
+                                      } else {
+                                          dateValue = new Date(rawDate);
+                                      }
+                                  }
+                                  const isValidDate = dateValue && !isNaN(dateValue.getTime());
+                                  
+                                  return (
+                                    <motion.div 
+                                      key={coupon.id}
+                                      initial={{ opacity: 0, y: 12 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      transition={{ delay: index * 0.05 }}
+                                      className="flex flex-col gap-2 rounded-2xl border border-pink-200 bg-pink-50/70 p-3 shadow-sm"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-pink-500">
+                                          <Ticket className="h-4 w-4 text-white" />
+                                        </div>
+                                        <div className="flex flex-col flex-1">
+                                          <span className="text-[11px] uppercase tracking-wide text-pink-600">Cupom</span>
+                                          <span className="font-mono text-xs md:text-sm font-semibold break-all">
+                                            {coupon.id}
+                                          </span>
+                                        </div>
+                                        <Badge className="text-[10px]" variant="outline">
+                                          #{index + 1}
+                                        </Badge>
+                                      </div>
+
+                                      {coupon.sale && (
+                                        <div className="mt-1 flex justify-between gap-4 text-[11px] md:text-xs text-muted-foreground">
+                                          <div className="flex flex-col">
+                                            <span>Valor da venda</span>
+                                            <span className="font-semibold text-slate-900">
+                                              R$ {coupon.sale.value.toFixed(2)}
+                                            </span>
+                                          </div>
+                                          <div className="flex flex-col text-right">
+                                            <span>Data</span>
+                                            <span className="font-semibold text-slate-900">
+                                              {isValidDate ? format(dateValue, "dd/MM/yy", { locale: ptBR }) : "-"}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </motion.div>
+                                  )
+                                })}
+                                </AnimatePresence>
+                            </div>
                           </div>
                         ) : (
                           <p className="text-center text-muted-foreground py-8">Nenhum cupom encontrado para este CPF.</p>
@@ -544,5 +604,3 @@ export default function SalesPage() {
     </div>
   );
 }
-
-    

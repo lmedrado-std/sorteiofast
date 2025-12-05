@@ -4,6 +4,7 @@ import type { Timestamp } from 'firebase/firestore';
 export type Sale = {
   id: string;
   sellerName: string;
+  customerName: string;
   cpf: string;
   value: number;
   date: Date | Timestamp; // Allow both for frontend and backend

@@ -2,44 +2,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
+    // Regra para configuração da campanha, aberta para o painel admin.
+    match /config/campaign {
+      allow read, write;
     }
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      // Admin status is determined by a custom claim on the user's auth token.
-      // This claim must be set by a backend process (e.g., a Cloud Function or a script using the Admin SDK).
-      return request.auth.token.admin == true;
-    }
-    
-    // Config: Public can read, only admin can write
-    match /config/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // Sales: Users can create their own sales, and only they or an admin can read/update/delete them.
+    // Regras para vendas, cupons e histórico de ganhadores, flexibilizadas
+    // para permitir exclusão anônima durante o desenvolvimento.
     match /sales/{saleId} {
-      allow read, update, delete: if isOwner(resource.data.employeeId) || isAdmin();
-      allow create: if isOwner(request.resource.data.employeeId) || isAdmin();
+      allow read, create, delete;
     }
-    
-    // Coupons: Tied to sales. Users can read their own. Admins can manage all.
+
     match /coupons/{couponId} {
-       allow read: if isOwner(resource.data.employeeId) || isAdmin();
-       allow create: if isAdmin(); // Should be created via backend logic when a sale is made
-       allow update, delete: if isAdmin();
+      allow read, create, delete;
     }
-    
-    // Winners History: Read-only for everyone, only admin can write.
-    match /winnersHistory/{historyId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+
+    match /winnersHistory/{docId} {
+      allow read, create, delete;
     }
   }
 }

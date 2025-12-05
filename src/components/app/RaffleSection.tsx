@@ -18,6 +18,24 @@ import type { Coupon, Sale, Winner } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Timestamp } from 'firebase/firestore';
+
+// Helper de formatação de data seguro
+function safeFormatDate(raw: any, formatString: string): string {
+  if (!raw) return "-";
+
+  let date: Date;
+
+  if (raw instanceof Timestamp) {
+    date = raw.toDate();
+  } else {
+    date = new Date(raw);
+  }
+
+  if (isNaN(date.getTime())) return "-";
+
+  return format(date, formatString, { locale: ptBR });
+}
 
 const raffleSchema = z.object({
     numberOfWinners: z.coerce.number().int().min(1, 'Pelo menos 1 ganhador é necessário.').positive(),
@@ -211,7 +229,7 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                                             <span className="text-xs text-muted-foreground">{winner.store}</span>
                                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mt-1">
                                                 <span>Venda: <span className="font-medium">R$ {winner.saleValue.toFixed(2)}</span></span>
-                                                <span>Data: <span className="font-medium">{format(new Date(winner.saleDate), 'dd/MM/yyyy', { locale: ptBR })}</span></span>
+                                                <span>Data: <span className="font-medium">{safeFormatDate(winner.saleDate, 'dd/MM/yyyy')}</span></span>
                                             </div>
                                         </div>
                                         <Badge className="font-mono text-xs w-fit" variant="outline">{winner.couponId}</Badge>

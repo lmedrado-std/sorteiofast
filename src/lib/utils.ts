@@ -1,24 +1,18 @@
-
-
-import { clsx, type ClassValue } from "clsx"
+import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { addDays, startOfDay, isBefore } from "date-fns";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/**
- * Verifica se a campanha está ativa comparando a data atual
- * com a data fim configurada.
- */
-export function isCampaignActive(campaignEndDate: string | Date): boolean {
-  if (!campaignEndDate) return false;
+export function isCampaignActive(endDate: Date | null | undefined): boolean {
+  if (!endDate) return false;
 
-  const targetDate = typeof campaignEndDate === 'string' ? new Date(campaignEndDate) : campaignEndDate;
+  const now = new Date();
 
-  if (Number.isNaN(targetDate.getTime())) {
-    return false;
-  }
+  // campanha ativa até o fim do dia configurado
+  const limit = startOfDay(addDays(endDate, 1));
 
-  return new Date() < targetDate;
+  return isBefore(now, limit);
 }

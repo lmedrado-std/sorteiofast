@@ -1,8 +1,7 @@
-
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { ShieldCheck, Ticket, Trash2, History, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShieldCheck, Ticket, Trash2, History, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -22,121 +21,142 @@ import WinnersHistory from '@/components/app/admin/WinnersHistory';
 import type { Coupon, Sale, Winner } from '@/lib/types';
 import CampaignSettings from '@/components/app/admin/CampaignSettings';
 import { CAMPAIGN_END_DATE, COUPON_VALUE_THRESHOLD } from '@/lib/config';
-import {
-  useFirestore,
-  useCollection,
-  useDoc,
-  useMemoFirebase,
-  setDocumentNonBlocking,
-  addDocumentNonBlocking,
-  deleteDocumentNonBlocking,
-} from '@/firebase';
-import { collection, doc, writeBatch } from 'firebase/firestore';
-
+import { db, addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { collection, doc, writeBatch, onSnapshot, Timestamp } from 'firebase/firestore';
 
 export type CampaignConfig = {
   couponValueThreshold: number;
-  campaignEndDate: Date;
+  campaignEndDate: Date | Timestamp;
+};
+
+type WinnerHistoryDoc = {
+  id: string;
+  winners: Winner[];
+  date: Timestamp;
+};
+
+const defaultCampaignConfig = {
+  couponValueThreshold: COUPON_VALUE_THRESHOLD,
+  campaignEndDate: new Date(CAMPAIGN_END_DATE),
 };
 
 export default function AdminDashboardPage() {
   const { toast } = useToast();
-  const firestore = useFirestore();
   const [isClient, setIsClient] = useState(false);
 
-  // Firestore Refs
-  const couponsColRef = useMemoFirebase(() => collection(firestore, 'coupons'), [firestore]);
-  const salesColRef = useMemoFirebase(() => collection(firestore, 'sales'), [firestore]);
-  const winnersHistoryColRef = useMemoFirebase(() => collection(firestore, 'winnersHistory'), [firestore]);
-  const configDocRef = useMemoFirebase(() => doc(firestore, 'config', 'campaign'), [firestore]);
+  // State for Firestore data
+  const [allCoupons, setAllCoupons] = useState<Coupon[]>([]);
+  const [allSales, setAllSales] = useState<Sale[]>([]);
+  const [winnersHistory, setWinnersHistory] = useState<WinnerHistoryDoc[]>([]);
+  const [campaignConfig, setCampaignConfig] = useState<CampaignConfig>(defaultCampaignConfig);
 
-  // Firestore Data Hooks
-  const { data: allCoupons, isLoading: isLoadingCoupons } = useCollection<Coupon>(couponsColRef);
-  const { data: allSales, isLoading: isLoadingSales } = useCollection<Sale>(salesColRef);
-  const { data: winnersHistory, isLoading: isLoadingHistory } = useCollection<Winner[]>(winnersHistoryColRef);
-  const { data: campaignConfigDoc, isLoading: isLoadingConfig } = useDoc<CampaignConfig>(configDocRef);
-
-  const campaignConfig = useMemo(() => {
-    if (campaignConfigDoc) {
-      return {
-        ...campaignConfigDoc,
-        // Ensure date is a Date object
-        campaignEndDate: new Date(campaignConfigDoc.campaignEndDate)
-      };
-    }
-    // Provide default values if doc doesn't exist
-    return {
-      couponValueThreshold: COUPON_VALUE_THRESHOLD,
-      campaignEndDate: new Date(CAMPAIGN_END_DATE),
-    };
-  }, [campaignConfigDoc]);
+  // Loading states
+  const [isLoadingCoupons, setIsLoadingCoupons] = useState(true);
+  const [isLoadingSales, setIsLoadingSales] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
 
   useEffect(() => {
     setIsClient(true);
+
+    const couponsColRef = collection(db, 'coupons');
+    const salesColRef = collection(db, 'sales');
+    const winnersHistoryColRef = collection(db, 'winnersHistory');
+    const configDocRef = doc(db, 'config', 'campaign');
+
+    const unsubscribeCoupons = onSnapshot(couponsColRef, snapshot => {
+      setAllCoupons(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Coupon[]);
+      setIsLoadingCoupons(false);
+    });
+
+    const unsubscribeSales = onSnapshot(salesColRef, snapshot => {
+      setAllSales(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Sale[]);
+      setIsLoadingSales(false);
+    });
+
+    const unsubscribeHistory = onSnapshot(winnersHistoryColRef, snapshot => {
+      setWinnersHistory(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as WinnerHistoryDoc[]);
+      setIsLoadingHistory(false);
+    });
+
+    const unsubscribeConfig = onSnapshot(configDocRef, docSnap => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as CampaignConfig;
+        let endDate: Date;
+        const raw = data.campaignEndDate as any;
+
+        if (raw instanceof Timestamp) {
+          endDate = raw.toDate();
+        } else {
+          // Handles string or Date objects
+          endDate = new Date(raw);
+        }
+
+        setCampaignConfig({
+          ...data,
+          campaignEndDate: endDate,
+        });
+      } else {
+        setCampaignConfig(defaultCampaignConfig);
+      }
+      setIsLoadingConfig(false);
+    });
+
+    // Cleanup listeners on unmount
+    return () => {
+      unsubscribeCoupons();
+      unsubscribeSales();
+      unsubscribeHistory();
+      unsubscribeConfig();
+    };
   }, []);
 
   const handleRaffleConducted = (newWinners: Winner[]) => {
-    // A "raffle" is a document in the winnersHistory collection
+    const winnersHistoryColRef = collection(db, 'winnersHistory');
     addDocumentNonBlocking(winnersHistoryColRef, { winners: newWinners, date: new Date() });
   };
 
   const handleDeleteCoupon = (couponId: string) => {
-    const couponDocRef = doc(firestore, 'coupons', couponId);
+    const couponDocRef = doc(db, 'coupons', couponId);
     deleteDocumentNonBlocking(couponDocRef);
     toast({ title: "Cupom excluído!", description: `O cupom ${couponId} foi removido.` });
   };
 
   const handleDeleteAllCoupons = async () => {
-    if (!allCoupons || allCoupons.length === 0) return;
-    
-    const batch = writeBatch(firestore);
+    if (allCoupons.length === 0) return;
+    const batch = writeBatch(db);
     allCoupons.forEach(coupon => {
-      const couponDocRef = doc(firestore, 'coupons', coupon.id);
-      batch.delete(couponDocRef);
+      batch.delete(doc(db, 'coupons', coupon.id));
     });
-
-    try {
-      await batch.commit();
-      toast({ title: "Todos os cupons foram excluídos!", variant: "destructive" });
-    } catch (error) {
-      console.error("Error deleting all coupons: ", error);
-      toast({ title: "Erro ao excluir cupons", description: "Ocorreu um erro. Tente novamente.", variant: "destructive" });
-    }
+    await batch.commit();
+    toast({ title: "Todos os cupons foram excluídos!", variant: "destructive" });
   };
   
   const handleDeleteWinnersHistory = async () => {
-    if (!winnersHistory || winnersHistory.length === 0) return;
-
-    const batch = writeBatch(firestore);
+    if (winnersHistory.length === 0) return;
+    const batch = writeBatch(db);
     winnersHistory.forEach(historyDoc => {
-      const historyDocRef = doc(firestore, 'winnersHistory', historyDoc.id);
-      batch.delete(historyDocRef);
+      batch.delete(doc(db, 'winnersHistory', historyDoc.id));
     });
-
-    try {
-      await batch.commit();
-      toast({ title: "Histórico de ganhadores foi limpo!", variant: "destructive" });
-    } catch (error) {
-       console.error("Error clearing winners history: ", error);
-       toast({ title: "Erro ao limpar histórico", description: "Ocorreu um erro. Tente novamente.", variant: "destructive" });
-    }
+    await batch.commit();
+    toast({ title: "Histórico de ganhadores foi limpo!", variant: "destructive" });
   };
 
-  const handleConfigSave = (newConfig: CampaignConfig) => {
-    // We use set with merge:true to create or update the document.
+  const handleConfigSave = (newConfig: Omit<CampaignConfig, 'campaignEndDate'> & { campaignEndDate: Date }) => {
+    const configDocRef = doc(db, 'config', 'campaign');
     setDocumentNonBlocking(configDocRef, newConfig, { merge: true });
-    toast({ title: "Configurações salvas!", description: "As novas configurações da campanha foram aplicadas." });
+    toast({ title: "Configurações salvas!" });
   }
 
   const isLoading = isLoadingCoupons || isLoadingSales || isLoadingHistory || isLoadingConfig;
 
   if (!isClient || isLoading) {
-    return <div className="flex justify-center items-center h-full"><p>Carregando dados do Firestore...</p></div>;
+    return (
+      <div className="flex h-full min-h-[50vh] items-center justify-center rounded-lg border border-dashed p-8 text-center">
+        <p className="flex items-center text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando dados do painel...</p>
+      </div>
+    );
   }
-
-  const validCoupons = allCoupons || [];
-  const validSales = allSales || [];
-  const validHistory = winnersHistory || [];
 
   return (
     <div className="flex flex-col gap-8">
@@ -148,7 +168,7 @@ export default function AdminDashboardPage() {
         <div className="flex gap-2">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" disabled={validCoupons.length === 0}>
+                <Button variant="destructive" size="sm" disabled={allCoupons.length === 0}>
                   <Trash2 className="mr-2 h-4 w-4" /> Excluir Todos os Cupons
                 </Button>
               </AlertDialogTrigger>
@@ -156,7 +176,7 @@ export default function AdminDashboardPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle />Tem certeza?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Essa ação não pode ser desfeita. Isso excluirá permanentemente todos os {validCoupons.length} cupons gerados.
+                    Essa ação não pode ser desfeita. Isso excluirá permanentemente todos os {allCoupons.length} cupons gerados.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -169,7 +189,7 @@ export default function AdminDashboardPage() {
             </AlertDialog>
             <AlertDialog>
                <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" disabled={validHistory.length === 0}>
+                <Button variant="outline" size="sm" disabled={winnersHistory.length === 0}>
                   <History className="mr-2 h-4 w-4" /> Limpar Histórico
                 </Button>
               </AlertDialogTrigger>
@@ -194,16 +214,16 @@ export default function AdminDashboardPage() {
       <CampaignSettings currentConfig={campaignConfig} onSave={handleConfigSave} />
 
       <RaffleSection 
-        allCoupons={validCoupons} 
-        allSales={validSales} 
+        allCoupons={allCoupons} 
+        allSales={allSales} 
         onRaffleConducted={handleRaffleConducted}
       />
       
-      <WinnersHistory historyData={validHistory} />
+      <WinnersHistory historyData={winnersHistory} />
 
       <CouponsList 
-        allCoupons={validCoupons} 
-        allSales={validSales}
+        allCoupons={allCoupons} 
+        allSales={allSales}
         onDeleteCoupon={handleDeleteCoupon}
       />
 
