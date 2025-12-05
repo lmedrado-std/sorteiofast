@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Crown, Medal, TrendingUp } from 'lucide-react';
 import type { Coupon, Sale } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface SellerRankingProps {
   allSales: Sale[];
@@ -21,11 +22,21 @@ type SellerData = {
 };
 
 export default function SellerRanking({ allSales, allCoupons }: SellerRankingProps) {
+  const [selectedStore, setSelectedStore] = useState('all');
+
+  const availableStores = useMemo(() => {
+    return [...new Set(allSales.map(s => s.store))];
+  }, [allSales]);
+
   const rankedSellers = useMemo(() => {
     const sellerMap: Record<string, SellerData> = {};
 
+    const filteredSales = selectedStore === 'all'
+        ? allSales
+        : allSales.filter(sale => sale.store === selectedStore);
+
     // Aggregate data from sales
-    allSales.forEach(sale => {
+    filteredSales.forEach(sale => {
       const { employeeId, sellerName, store, value } = sale;
       if (!sellerMap[employeeId]) {
         sellerMap[employeeId] = {
@@ -39,8 +50,11 @@ export default function SellerRanking({ allSales, allCoupons }: SellerRankingPro
       sellerMap[employeeId].totalSalesValue += value;
     });
 
-    // Count coupons for each seller
-    allCoupons.forEach(coupon => {
+    // Count coupons for each seller based on the filtered sales
+    const filteredSaleIds = new Set(filteredSales.map(s => s.id));
+    const filteredCoupons = allCoupons.filter(c => filteredSaleIds.has(c.saleId));
+
+    filteredCoupons.forEach(coupon => {
       if (sellerMap[coupon.employeeId]) {
         sellerMap[coupon.employeeId].couponCount += 1;
       }
@@ -48,7 +62,7 @@ export default function SellerRanking({ allSales, allCoupons }: SellerRankingPro
 
     // Convert map to array and sort by total sales value
     return Object.values(sellerMap).sort((a, b) => b.totalSalesValue - a.totalSalesValue);
-  }, [allSales, allCoupons]);
+  }, [allSales, allCoupons, selectedStore]);
 
   const getRankIcon = (rank: number) => {
     if (rank === 0) return <Crown className="w-5 h-5 text-yellow-500" />;
@@ -59,14 +73,27 @@ export default function SellerRanking({ allSales, allCoupons }: SellerRankingPro
   
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp />
-          Ranking de Vendedores
-        </CardTitle>
-        <CardDescription>
-          Classificação dos vendedores pelo valor total de vendas.
-        </CardDescription>
+      <CardHeader className="flex-row items-center justify-between">
+        <div>
+            <CardTitle className="flex items-center gap-2">
+            <TrendingUp />
+            Ranking de Vendedores
+            </CardTitle>
+            <CardDescription>
+            Classificação dos vendedores pelo valor total de vendas.
+            </CardDescription>
+        </div>
+        <Select value={selectedStore} onValueChange={setSelectedStore}>
+            <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtrar por loja" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="all">Todas as Lojas</SelectItem>
+                {availableStores.map(store => (
+                    <SelectItem key={store} value={store}>{store}</SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
       </CardHeader>
       <CardContent>
         {rankedSellers.length > 0 ? (
@@ -105,7 +132,7 @@ export default function SellerRanking({ allSales, allCoupons }: SellerRankingPro
           </Table>
         ) : (
           <div className="h-24 text-center flex items-center justify-center border-2 border-dashed rounded-md">
-            <p className="text-muted-foreground">Nenhuma venda registrada para gerar o ranking.</p>
+            <p className="text-muted-foreground">Nenhuma venda registrada para os filtros selecionados.</p>
           </div>
         )}
       </CardContent>
