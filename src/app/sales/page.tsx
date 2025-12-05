@@ -74,6 +74,13 @@ const defaultCampaignConfig: CampaignConfig = {
   campaignEndDate: new Date(CAMPAIGN_END_DATE),
 };
 
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+};
+
 export default function SalesPage() {
   const { toast } = useToast();
   
@@ -284,7 +291,7 @@ export default function SalesPage() {
         
         const saleData: Omit<Sale, 'id'> = { ...data, employeeId: data.cpf, date: data.date, customerName: '' };
         
-        const saleRef = await addDoc(salesColRef, saleData);
+        const saleRef = await addDocumentNonBlocking(salesColRef, saleData);
         const saleId = saleRef.id;
         const finalSale: Sale = { ...saleData, id: saleId };
 
@@ -441,7 +448,7 @@ export default function SalesPage() {
                               </FormItem>
                             )}
                           />
-                          <FormField
+                           <FormField
                             control={saleForm.control}
                             name="value"
                             render={({ field }) => (
@@ -449,26 +456,18 @@ export default function SalesPage() {
                                 <FormLabel>Valor da Venda (R$)</FormLabel>
                                 <FormControl>
                                   <Input
-                                    type="text"
-                                    inputMode="decimal"
-                                    placeholder="Ex: 1050,75"
+                                    placeholder="R$ 0,00"
                                     {...field}
-                                    onBlur={(e) => {
-                                      field.onBlur();
-                                      const value = parseFloat(e.target.value.replace(',', '.')) || 0;
-                                      saleForm.setValue('value', value, { shouldValidate: true });
-                                    }}
                                     onChange={(e) => {
-                                      const value = e.target.value;
-                                      if (/^[\d,]*$/.test(value) && (value.match(/,/g) || []).length <= 1) {
-                                        field.onChange(value);
-                                      }
+                                      const onlyDigits = e.target.value.replace(/\D/g, '');
+                                      const numericValue = Number(onlyDigits) / 100;
+                                      saleForm.setValue('value', numericValue, { shouldValidate: true });
+                                      field.onChange(formatCurrency(numericValue));
                                     }}
+                                    onBlur={field.onBlur}
                                     value={
-                                        typeof field.value === 'number' && field.value > 0
-                                        ? String(field.value).replace('.', ',')
-                                        : field.value === 0 ? '' : field.value
-                                      }
+                                      field.value === 0 ? '' : typeof field.value === 'number' ? formatCurrency(field.value) : field.value
+                                    }
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -654,5 +653,3 @@ export default function SalesPage() {
     </div>
   );
 }
-
-    
