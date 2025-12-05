@@ -53,7 +53,10 @@ import { db, addDocumentNonBlocking } from '@/firebase';
 const saleSchema = z.object({
   sellerName: z.string().min(1, 'Nome do vendedor é obrigatório.'),
   cpf: z.string().min(11, 'CPF deve ter 11 dígitos.').max(11, 'CPF deve ter 11 dígitos.'),
-  value: z.coerce.number().positive('O valor deve ser positivo.'),
+  value: z.coerce
+    .number()
+    .positive('O valor deve ser positivo.')
+    .max(1000000, 'O valor máximo da venda não pode exceder R$ 1.000.000,00.'),
   date: z.date({
     required_error: 'A data da venda é obrigatória.',
   }),
@@ -651,3 +654,5 @@ export default function SalesPage() {
     </div>
   );
 }
+
+    
