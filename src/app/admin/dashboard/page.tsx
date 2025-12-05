@@ -23,6 +23,7 @@ import CampaignSettings from '@/components/app/admin/CampaignSettings';
 import { CAMPAIGN_END_DATE, COUPON_VALUE_THRESHOLD } from '@/lib/config';
 import { db, addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { collection, doc, writeBatch, onSnapshot, Timestamp } from 'firebase/firestore';
+import SellerRanking from '@/components/app/admin/SellerRanking';
 
 export type CampaignConfig = {
   couponValueThreshold: number;
@@ -234,6 +235,8 @@ export default function AdminDashboardPage() {
         allSales={allSales} 
         onRaffleConducted={handleRaffleConducted}
       />
+
+      <SellerRanking allSales={allSales} allCoupons={allCoupons} />
       
       <WinnersHistory historyData={winnersHistory} />
 
