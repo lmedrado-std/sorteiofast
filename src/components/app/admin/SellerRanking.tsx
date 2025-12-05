@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Crown, Medal, TrendingUp } from 'lucide-react';
 import type { Coupon, Sale } from '@/lib/types';
-import { Badge } from '../ui/badge';
+import { Badge } from '@/components/ui/badge';
 
 interface SellerRankingProps {
   allSales: Sale[];
