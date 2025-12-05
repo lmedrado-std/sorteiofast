@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -231,7 +232,7 @@ export default function AdminDashboardPage() {
                    <AlertDialogDescription>
                     Essa ação limpará todo o histórico de sorteios. Os cupons não serão afetados.
                   </AlertDialogDescription>
-                </GraphQLHeader>
+                </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
                   <AlertDialogAction onClick={handleDeleteWinnersHistory}>
