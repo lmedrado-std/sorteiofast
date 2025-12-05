@@ -45,7 +45,7 @@ import { cn, isCampaignActive as isCampaignStillActive } from '@/lib/utils';
 import type { Sale, Coupon } from '@/lib/types';
 import AppHeader from '@/components/app/AppHeader';
 import CountdownTimer from '@/components/app/CountdownTimer';
-import { CalendarIcon, PlusCircle, Search, Ticket, User, VerifiedIcon, AlertTriangle, Loader2 } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Search, Ticket, User, VerifiedIcon, AlertTriangle, Loader2, Trophy } from 'lucide-react';
 import { CAMPAIGN_END_DATE, COUPON_VALUE_THRESHOLD } from '@/lib/config';
 import type { CampaignConfig } from '@/app/admin/dashboard/page';
 import { db, addDocumentNonBlocking } from '@/firebase';
@@ -78,9 +78,12 @@ export default function SalesPage() {
   const [myCoupons, setMyCoupons] = useState<CouponWithSaleData[]>([]);
   const [isSearchingCoupons, setIsSearchingCoupons] = useState(false);
   const [isSubmittingSale, setIsSubmittingSale] = useState(false);
+  const [sellerRank, setSellerRank] = useState<{ position: number; totalSellers: number; store: string } | null>(null);
 
   const [campaignConfig, setCampaignConfig] = useState<CampaignConfig>(defaultCampaignConfig);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const [allSales, setAllSales] = useState<Sale[]>([]);
+  const [allCoupons, setAllCoupons] = useState<Coupon[]>([]);
   
   const [isClient, setIsClient] = useState(false);
   
@@ -104,45 +107,47 @@ export default function SalesPage() {
 
   useEffect(() => {
     setIsClient(true);
+    
+    async function fetchData() {
+        try {
+            const salesQuery = query(collection(db, 'sales'));
+            const couponsQuery = query(collection(db, 'coupons'));
+            const configRef = doc(db, 'config', 'campaign');
 
-    async function fetchCampaignConfig() {
-      try {
-        const configRef = doc(db, 'config', 'campaign');
-        const configSnap = await getDoc(configRef);
-        if (configSnap.exists()) {
-          const docData = configSnap.data();
-          let endDate: Date;
+            const [salesSnap, couponsSnap, configSnap] = await Promise.all([
+                getDocs(salesQuery),
+                getDocs(couponsQuery),
+                getDoc(configRef),
+            ]);
 
-          const rawEndDate = docData.campaignEndDate;
-          if (rawEndDate instanceof Timestamp) {
-            endDate = rawEndDate.toDate();
-          } else if (typeof rawEndDate === 'string') {
-            endDate = new Date(rawEndDate);
-          } else {
-            endDate = defaultCampaignConfig.campaignEndDate;
-          }
+            setAllSales(salesSnap.docs.map(d => ({ ...d.data(), id: d.id })) as Sale[]);
+            setAllCoupons(couponsSnap.docs.map(d => ({ ...d.data(), id: d.id })) as Coupon[]);
 
-          if (isNaN(endDate.getTime())) {
-            endDate = defaultCampaignConfig.campaignEndDate;
-          }
+            if (configSnap.exists()) {
+                const docData = configSnap.data();
+                const rawEndDate = docData.campaignEndDate;
+                let endDate = rawEndDate instanceof Timestamp ? rawEndDate.toDate() : new Date(rawEndDate);
 
-          setCampaignConfig({
-            couponValueThreshold: docData.couponValueThreshold || defaultCampaignConfig.couponValueThreshold,
-            campaignEndDate: endDate,
-          });
-        } else {
-          console.warn("Configuração da campanha não encontrada, usando valores padrão.");
-          setCampaignConfig(defaultCampaignConfig);
+                if (isNaN(endDate.getTime())) {
+                    endDate = defaultCampaignConfig.campaignEndDate;
+                }
+
+                setCampaignConfig({
+                    couponValueThreshold: docData.couponValueThreshold || defaultCampaignConfig.couponValueThreshold,
+                    campaignEndDate: endDate,
+                });
+            } else {
+                setCampaignConfig(defaultCampaignConfig);
+            }
+        } catch (error) {
+            console.error("Erro ao buscar dados:", error);
+            setCampaignConfig(defaultCampaignConfig); // fallback
+        } finally {
+            setIsLoadingConfig(false);
         }
-      } catch (error) {
-        console.error("Erro ao buscar configuração da campanha:", error);
-        setCampaignConfig(defaultCampaignConfig);
-      } finally {
-        setIsLoadingConfig(false);
-      }
     }
 
-    fetchCampaignConfig();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -176,6 +181,7 @@ export default function SalesPage() {
   const onCouponQuerySubmit = async (data: z.infer<typeof couponQuerySchema>) => {
     setIsSearchingCoupons(true);
     setMyCoupons([]);
+    setSellerRank(null);
     setViewingCpf(data.cpf);
 
     try {
@@ -194,22 +200,43 @@ export default function SalesPage() {
       }
       
       const saleIds = [...new Set(employeeCoupons.map(c => c.saleId).filter(Boolean))];
-      if (saleIds.length === 0) {
-          setMyCoupons(employeeCoupons.map(c => ({...c})));
-          return;
-      }
+      const userSales = allSales.filter(s => s.employeeId === data.cpf);
+      const userStore = userSales.length > 0 ? userSales[0].store : null;
       
-      const salesRef = collection(db, 'sales');
-      const salesQuery = query(salesRef, where('__name__', 'in', saleIds));
-      const salesSnap = await getDocs(salesQuery);
-      const salesData = salesSnap.docs.map(doc => ({...doc.data() as Sale, id: doc.id}));
-
       const couponsWithSaleData: CouponWithSaleData[] = employeeCoupons.map(coupon => {
-        const sale = salesData.find(s => s.id === coupon.saleId);
+        const sale = allSales.find(s => s.id === coupon.saleId);
         return { ...coupon, sale };
       });
       
       setMyCoupons(couponsWithSaleData);
+
+      // Calcular o ranking
+      if (userStore) {
+        const salesInStore = allSales.filter(s => s.store === userStore);
+        const sellerMap: Record<string, { totalSalesValue: number }> = {};
+
+        salesInStore.forEach(sale => {
+          if (!sellerMap[sale.employeeId]) {
+            sellerMap[sale.employeeId] = { totalSalesValue: 0 };
+          }
+          sellerMap[sale.employeeId].totalSalesValue += sale.value;
+        });
+
+        const rankedSellers = Object.keys(sellerMap)
+          .map(cpf => ({ cpf, totalSalesValue: sellerMap[cpf].totalSalesValue }))
+          .sort((a, b) => b.totalSalesValue - a.totalSalesValue);
+        
+        const myRankIndex = rankedSellers.findIndex(seller => seller.cpf === data.cpf);
+        
+        if (myRankIndex !== -1) {
+          setSellerRank({
+            position: myRankIndex + 1,
+            totalSellers: rankedSellers.length,
+            store: userStore,
+          });
+        }
+      }
+
       toast({
         title: 'Busca Concluída',
         description: `${employeeCoupons.length} cupons encontrados para este CPF.`,
@@ -252,11 +279,14 @@ export default function SalesPage() {
         const salesColRef = collection(db, 'sales');
         const couponsColRef = collection(db, 'coupons');
         
-        const saleData: Omit<Sale, 'id'> = { ...data, employeeId: data.cpf, date: data.date };
+        const saleData: Omit<Sale, 'id'> = { ...data, employeeId: data.cpf, date: data.date, customerName: '' };
         
         const saleRef = await addDoc(salesColRef, saleData);
         const saleId = saleRef.id;
         const finalSale: Sale = { ...saleData, id: saleId };
+
+        // Atualiza o estado local de vendas
+        setAllSales(prev => [...prev, finalSale]);
 
         const couponCount = Math.floor(data.value / campaignConfig.couponValueThreshold);
       
@@ -267,8 +297,10 @@ export default function SalesPage() {
                 saleId: saleId,
                 employeeId: data.cpf,
             };
-            addDocumentNonBlocking(couponsColRef, newCouponData);
-            newCoupons.push({ ...newCouponData, id: `temp-${i}`, sale: finalSale });
+            const couponRef = await addDocumentNonBlocking(couponsColRef, newCouponData);
+            const newCouponWithId = { ...newCouponData, id: couponRef.id };
+            newCoupons.push({ ...newCouponWithId, sale: finalSale });
+            setAllCoupons(prev => [...prev, newCouponWithId]); // Atualiza cupons local
           }
         }
 
@@ -523,13 +555,28 @@ export default function SalesPage() {
 
                     {viewingCpf && !isSearchingCoupons && (
                       <div className="space-y-4">
-                        <h3 className="text-lg font-medium">Cupons para o CPF: <span className="font-bold text-primary">{viewingCpf}</span></h3>
+                        <h3 className="text-lg font-medium">Resultados para: <span className="font-bold text-primary">{viewingCpf}</span></h3>
                         {myCoupons.length > 0 ? (
                           <div className="space-y-4">
-                            <div className="p-3 rounded-lg bg-slate-100/80 border border-slate-200/80 text-sm text-slate-600 space-y-1">
-                                <p><strong>{summary.count}</strong> cupom{summary.count > 1 ? 's' : ''} gerado{summary.count > 1 ? 's' : ''}</p>
-                                <p>Valor total em vendas: <span className="font-semibold text-slate-800">R$ {summary.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
+                            <div className="p-4 rounded-lg bg-slate-100/80 border border-slate-200/80 text-sm text-slate-600 space-y-2">
+                                <p><strong>{summary.count}</strong> cupom{summary.count > 1 ? 's' : ''} gerado{summary.count > 1 ? 's' : ''}.</p>
+                                <p>Valor total em vendas: <span className="font-semibold text-slate-800">R$ {summary.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>.</p>
                             </div>
+                            
+                            {sellerRank && (
+                                <Card className="bg-amber-50 border-amber-200">
+                                    <CardContent className="p-4 flex items-center gap-4">
+                                        <Trophy className="w-8 h-8 text-amber-500"/>
+                                        <div>
+                                            <p className="font-semibold text-amber-900">
+                                                Você está em <span className="font-bold">{sellerRank.position}º</span> lugar no ranking de {sellerRank.totalSellers} vendedores da loja.
+                                            </p>
+                                            <p className="text-xs text-amber-700">{sellerRank.store}</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <AnimatePresence>
                                 {myCoupons.map((coupon, index) => {
@@ -572,7 +619,7 @@ export default function SalesPage() {
                                           <div className="flex flex-col">
                                             <span>Valor da venda</span>
                                             <span className="font-semibold text-slate-900">
-                                              R$ {coupon.sale.value.toFixed(2)}
+                                              R$ {Number(coupon.sale.value).toFixed(2)}
                                             </span>
                                           </div>
                                           <div className="flex flex-col text-right">
