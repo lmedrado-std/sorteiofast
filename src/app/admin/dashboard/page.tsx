@@ -136,23 +136,32 @@ export default function AdminDashboardPage() {
       return;
     }
 
-    const batch = writeBatch(db);
+    try {
+      const batch = writeBatch(db);
 
-    couponsToDelete.forEach(coupon => {
-      batch.delete(doc(db, 'coupons', coupon.id));
-    });
+      couponsToDelete.forEach(coupon => {
+        batch.delete(doc(db, 'coupons', coupon.id));
+      });
 
-    salesToDelete.forEach(sale => {
-        batch.delete(doc(db, 'sales', sale.id));
-    });
+      salesToDelete.forEach(sale => {
+          batch.delete(doc(db, 'sales', sale.id));
+      });
 
-    await batch.commit();
+      await batch.commit();
 
-    toast({ 
-      title: "Dados do vendedor excluídos!",
-      description: `Todos os cupons e vendas de ${employeeName || 'vendedor selecionado'} foram removidos.`,
-      variant: "destructive"
-    });
+      toast({ 
+        title: "Dados do vendedor excluídos!",
+        description: `Todos os cupons e vendas de ${employeeName || 'vendedor selecionado'} foram removidos.`,
+        variant: "destructive"
+      });
+    } catch (error) {
+        console.error("Error deleting employee data:", error);
+        toast({
+            variant: "destructive",
+            title: "Erro ao excluir dados",
+            description: "Houve um problema ao tentar remover os dados do vendedor.",
+        });
+    }
   };
 
   const handleDeleteAllCoupons = async () => {
