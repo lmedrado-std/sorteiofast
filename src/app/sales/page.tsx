@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { AnimatePresence, motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { collection, query, where, getDocs, doc, getDoc, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, Timestamp, addDoc } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -34,6 +34,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Tabs,
   TabsContent,
   TabsList,
@@ -49,7 +59,7 @@ import CountdownTimer from '@/components/app/CountdownTimer';
 import { CalendarIcon, PlusCircle, Search, Ticket, User, VerifiedIcon, AlertTriangle, Loader2, Trophy } from 'lucide-react';
 import { CAMPAIGN_END_DATE, COUPON_VALUE_THRESHOLD } from '@/lib/config';
 import type { CampaignConfig } from '@/app/admin/dashboard/page';
-import { db, addDocumentNonBlocking } from '@/firebase';
+import { db } from '@/firebase';
 
 const saleSchema = z.object({
   sellerName: z.string().min(1, 'Nome do vendedor é obrigatório.'),
@@ -69,6 +79,7 @@ const couponQuerySchema = z.object({
 });
 
 type CouponWithSaleData = Coupon & { sale?: Sale };
+type SaleFormData = z.infer<typeof saleSchema>;
 
 const defaultCampaignConfig: CampaignConfig = {
   couponValueThreshold: COUPON_VALUE_THRESHOLD,
@@ -95,6 +106,8 @@ export default function SalesPage() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [allSales, setAllSales] = useState<Sale[]>([]);
   const [allCoupons, setAllCoupons] = useState<Coupon[]>([]);
+
+  const [confirmationData, setConfirmationData] = useState<SaleFormData | null>(null);
   
   const [isClient, setIsClient] = useState(false);
   
@@ -172,7 +185,7 @@ export default function SalesPage() {
     }
   }, [campaignConfig, isLoadingConfig]);
 
-  const saleForm = useForm<z.infer<typeof saleSchema>>({
+  const saleForm = useForm<SaleFormData>({
     resolver: zodResolver(saleSchema),
     defaultValues: {
       sellerName: '',
@@ -264,8 +277,15 @@ export default function SalesPage() {
     }
   };
 
-  async function onSaleSubmit(data: z.infer<typeof saleSchema>) {
+  const handleSaleSubmitRequest = (data: SaleFormData) => {
+    setConfirmationData(data);
+  };
+
+  async function onSaleSubmit() {
+    if (!confirmationData) return;
+
     setIsSubmittingSale(true);
+
     if (!isCampaignActive) {
       toast({
         variant: "destructive",
@@ -273,16 +293,18 @@ export default function SalesPage() {
         description: "Não é possível registrar novas vendas.",
       });
       setIsSubmittingSale(false);
+      setConfirmationData(null);
       return;
     }
 
-    if (data.value < campaignConfig.couponValueThreshold) {
+    if (confirmationData.value < campaignConfig.couponValueThreshold) {
       toast({
           variant: "destructive",
           title: "Valor Insuficiente",
           description: `O valor da venda deve ser de pelo menos R$ ${campaignConfig.couponValueThreshold.toFixed(2)} para registrar.`,
       });
       setIsSubmittingSale(false);
+      setConfirmationData(null);
       return;
     }
 
@@ -290,32 +312,31 @@ export default function SalesPage() {
         const salesColRef = collection(db, 'sales');
         const couponsColRef = collection(db, 'coupons');
         
-        const saleData: Omit<Sale, 'id'> = { ...data, employeeId: data.cpf, date: data.date, customerName: '' };
+        const saleData: Omit<Sale, 'id'> = { ...confirmationData, employeeId: confirmationData.cpf, date: confirmationData.date, customerName: '' };
         
-        const saleRef = await addDocumentNonBlocking(salesColRef, saleData);
+        const saleRef = await addDoc(salesColRef, saleData);
         const saleId = saleRef.id;
         const finalSale: Sale = { ...saleData, id: saleId };
 
-        // Atualiza o estado local de vendas
         setAllSales(prev => [...prev, finalSale]);
 
-        const couponCount = Math.floor(data.value / campaignConfig.couponValueThreshold);
+        const couponCount = Math.floor(confirmationData.value / campaignConfig.couponValueThreshold);
       
         let newCoupons: CouponWithSaleData[] = [];
         if (couponCount > 0) {
           for (let i = 0; i < couponCount; i++) {
             const newCouponData: Omit<Coupon, 'id'> = {
                 saleId: saleId,
-                employeeId: data.cpf,
+                employeeId: confirmationData.cpf,
             };
-            const couponRef = await addDocumentNonBlocking(couponsColRef, newCouponData);
+            const couponRef = await addDoc(couponsColRef, newCouponData);
             const newCouponWithId = { ...newCouponData, id: couponRef.id };
             newCoupons.push({ ...newCouponWithId, sale: finalSale });
-            setAllCoupons(prev => [...prev, newCouponWithId]); // Atualiza cupons local
+            setAllCoupons(prev => [...prev, newCouponWithId]);
           }
         }
 
-      if (viewingCpf === data.cpf) {
+      if (viewingCpf === confirmationData.cpf) {
         setMyCoupons(prev => [...prev, ...newCoupons]);
       }
 
@@ -340,6 +361,7 @@ export default function SalesPage() {
       });
     } finally {
       setIsSubmittingSale(false);
+      setConfirmationData(null);
     }
   }
 
@@ -397,7 +419,7 @@ export default function SalesPage() {
                         </div>
                     ) : (
                     <Form {...saleForm}>
-                      <form onSubmit={saleForm.handleSubmit(onSaleSubmit)} className="space-y-3 md:space-y-4">
+                      <form onSubmit={saleForm.handleSubmit(handleSaleSubmitRequest)} className="space-y-3 md:space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
                           <FormField
                             control={saleForm.control}
@@ -651,6 +673,33 @@ export default function SalesPage() {
           </div>
         </div>
       </main>
+
+      <AlertDialog open={!!confirmationData} onOpenChange={(open) => !open && setConfirmationData(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Registro de Venda?</AlertDialogTitle>
+            {confirmationData && (
+                 <AlertDialogDescription>
+                    <p>Você confirma o registro da venda com os seguintes dados?</p>
+                    <ul className="mt-4 space-y-2 text-sm text-foreground">
+                        <li><strong>Vendedor:</strong> {confirmationData.sellerName}</li>
+                        <li><strong>CPF:</strong> {confirmationData.cpf}</li>
+                        <li><strong>Loja:</strong> {confirmationData.store}</li>
+                        <li><strong>Valor:</strong> {formatCurrency(confirmationData.value)}</li>
+                        <li><strong>Data:</strong> {format(confirmationData.date, 'dd/MM/yyyy', { locale: ptBR })}</li>
+                    </ul>
+                 </AlertDialogDescription>
+            )}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmittingSale}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={onSaleSubmit} disabled={isSubmittingSale}>
+              {isSubmittingSale ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Confirmando...</> : "Confirmar e Gerar Cupons"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
