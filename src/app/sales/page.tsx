@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -354,11 +355,11 @@ export default function SalesPage() {
     <div className="flex flex-col min-h-screen">
       <AppHeader />
       <main className="flex-1 bg-gradient-to-b from-slate-50 to-white">
-        <div className="container mx-auto px-4 py-8 md:py-12">
-          <div className="mx-auto flex max-w-3xl flex-col gap-8">
+        <div className="container mx-auto px-3 py-4 md:px-4 md:py-8">
+          <div className="mx-auto flex max-w-3xl flex-col gap-4 md:gap-8">
 
             <Card>
-              <CardHeader>
+              <CardHeader className="px-4 py-3 md:px-6 md:py-4">
                 <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
                   <User className="h-5 w-5 text-primary" /> Painel do Funcionário
                 </CardTitle>
@@ -371,23 +372,23 @@ export default function SalesPage() {
             <CountdownTimer targetDate={campaignConfig.campaignEndDate} />
 
             <Tabs defaultValue="sales" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted/60 p-1">
-                <TabsTrigger value="sales" className="flex items-center justify-center gap-1 text-xs md:text-sm">
+              <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted/60 p-0.5 md:p-1">
+                <TabsTrigger value="sales" className="flex items-center justify-center gap-1 py-2 text-[11px] md:text-sm">
                   <PlusCircle className="mr-2 h-4 w-4" /> Registrar Venda
                 </TabsTrigger>
-                <TabsTrigger value="coupons" className="flex items-center justify-center gap-1 text-xs md:text-sm">
+                <TabsTrigger value="coupons" className="flex items-center justify-center gap-1 py-2 text-[11px] md:text-sm">
                   <Ticket className="mr-2 h-4 w-4" /> Meus Cupons
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="sales">
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="px-4 py-3 md:px-6 md:py-4">
                     <CardTitle>Nova Venda</CardTitle>
                     <CardDescription>
-                      Preencha os dados da venda. Para cada R$ {campaignConfig.couponValueThreshold.toFixed(2)}, um cupom será gerado.
+                      Para cada R$ {campaignConfig.couponValueThreshold.toFixed(2)}, um cupom será gerado.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="px-4 pb-4 pt-3 md:px-6 md:pb-6">
                     {!isCampaignActive ? (
                         <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed rounded-lg bg-muted/50">
                           <AlertTriangle className="w-12 h-12 text-destructive" />
@@ -396,14 +397,14 @@ export default function SalesPage() {
                         </div>
                     ) : (
                     <Form {...saleForm}>
-                      <form onSubmit={saleForm.handleSubmit(onSaleSubmit)} className="space-y-4">
+                      <form onSubmit={saleForm.handleSubmit(onSaleSubmit)} className="space-y-3 md:space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
                           <FormField
                             control={saleForm.control}
                             name="sellerName"
                             render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Nome do Vendedor</FormLabel>
+                              <FormItem className="space-y-1.5 md:space-y-2">
+                                <FormLabel className="text-xs md:text-sm">Nome do Vendedor</FormLabel>
                                 <FormControl>
                                   <Input placeholder="Ex: João da Silva" {...field} />
                                 </FormControl>
@@ -415,8 +416,8 @@ export default function SalesPage() {
                             control={saleForm.control}
                             name="cpf"
                             render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>CPF</FormLabel>
+                              <FormItem className="space-y-1.5 md:space-y-2">
+                                <FormLabel className="text-xs md:text-sm">CPF</FormLabel>
                                 <FormControl>
                                   <Input placeholder="Digite seu CPF (apenas números)" {...field} />
                                 </FormControl>
@@ -431,8 +432,8 @@ export default function SalesPage() {
                             control={saleForm.control}
                             name="store"
                             render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Loja</FormLabel>
+                              <FormItem className="space-y-1.5 md:space-y-2">
+                                <FormLabel className="text-xs md:text-sm">Loja</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                   <FormControl>
                                     <SelectTrigger>
@@ -452,8 +453,8 @@ export default function SalesPage() {
                             control={saleForm.control}
                             name="value"
                             render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Valor da Venda (R$)</FormLabel>
+                              <FormItem className="space-y-1.5 md:space-y-2">
+                                <FormLabel className="text-xs md:text-sm">Valor da Venda (R$)</FormLabel>
                                 <FormControl>
                                   <Input
                                     placeholder="R$ 0,00"
@@ -480,8 +481,8 @@ export default function SalesPage() {
                           control={saleForm.control}
                           name="date"
                           render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                              <FormLabel>Data da Venda</FormLabel>
+                            <FormItem className="flex flex-col space-y-1.5 md:space-y-2">
+                              <FormLabel className="text-xs md:text-sm">Data da Venda</FormLabel>
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <FormControl>
@@ -517,7 +518,7 @@ export default function SalesPage() {
                             </FormItem>
                           )}
                         />
-                        <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isSubmittingSale}>
+                        <Button type="submit" className="w-full h-9 md:h-10 text-xs md:text-sm bg-accent hover:bg-accent/90" disabled={isSubmittingSale}>
                            {isSubmittingSale ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Gerando...</> : 'Gerar Cupons'}
                         </Button>
                       </form>
@@ -528,19 +529,19 @@ export default function SalesPage() {
               </TabsContent>
               <TabsContent value="coupons">
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="px-4 py-3 md:px-6 md:py-4">
                       <CardTitle>Consultar Meus Cupons</CardTitle>
                       <CardDescription>Digite seu CPF para ver todos os cupons que você gerou.</CardDescription>
                     </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-6 px-4 pb-4 pt-3 md:px-6 md:pb-6">
                     <Form {...couponQueryForm}>
                       <form onSubmit={couponQueryForm.handleSubmit(onCouponQuerySubmit)} className="flex items-start gap-2">
                         <FormField
                             control={couponQueryForm.control}
                             name="cpf"
                             render={({ field }) => (
-                              <FormItem className="flex-1">
-                                <FormLabel>CPF</FormLabel>
+                              <FormItem className="flex-1 space-y-1.5 md:space-y-2">
+                                <FormLabel className="text-xs md:text-sm">CPF</FormLabel>
                                 <FormControl>
                                   <Input placeholder="Digite seu CPF (apenas números)" {...field} />
                                 </FormControl>
@@ -548,7 +549,7 @@ export default function SalesPage() {
                               </FormItem>
                             )}
                           />
-                          <Button type="submit" className="mt-8" disabled={isSearchingCoupons}>
+                          <Button type="submit" className="mt-7 md:mt-8 h-9 md:h-10" disabled={isSearchingCoupons}>
                             {isSearchingCoupons ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                             Buscar
                           </Button>
@@ -560,26 +561,26 @@ export default function SalesPage() {
                         <h3 className="text-lg font-medium">Resultados para: <span className="font-bold text-primary">{viewingCpf}</span></h3>
                         {myCoupons.length > 0 ? (
                           <div className="space-y-4">
-                            <div className="p-4 rounded-lg bg-slate-100/80 border border-slate-200/80 text-sm text-slate-600 space-y-2">
+                            <div className="p-3 md:p-4 rounded-lg bg-slate-100/80 border border-slate-200/80 text-xs md:text-sm text-slate-600 space-y-2">
                                 <p><strong>{summary.count}</strong> cupom{summary.count > 1 ? 's' : ''} gerado{summary.count > 1 ? 's' : ''}.</p>
                                 <p>Valor total em vendas: <span className="font-semibold text-slate-800">R$ {summary.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>.</p>
                             </div>
                             
                             {sellerRank && (
                                 <Card className="bg-amber-50 border-amber-200">
-                                    <CardContent className="p-4 flex items-center gap-4">
-                                        <Trophy className="w-8 h-8 text-amber-500"/>
+                                    <CardContent className="p-3 md:p-4 flex items-start gap-3 md:gap-4">
+                                        <Trophy className="w-6 h-6 md:w-8 md:h-8 text-amber-500 mt-1"/>
                                         <div>
-                                            <p className="font-semibold text-amber-900">
+                                            <p className="font-semibold text-amber-900 text-sm md:text-base">
                                                 Você está em <span className="font-bold">{sellerRank.position}º</span> lugar no ranking de {sellerRank.totalSellers} vendedores da loja.
                                             </p>
-                                            <p className="text-xs text-amber-700">{sellerRank.store}</p>
+                                            <p className="text-xs md:text-sm text-amber-700">{sellerRank.store}</p>
                                         </div>
                                     </CardContent>
                                 </Card>
                             )}
 
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                 <AnimatePresence>
                                 {myCoupons.map((coupon, index) => {
                                   const rawDate = coupon.sale?.date;
@@ -653,3 +654,5 @@ export default function SalesPage() {
     </div>
   );
 }
+
+    
