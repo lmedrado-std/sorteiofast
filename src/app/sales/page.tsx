@@ -537,6 +537,7 @@ export default function SalesPage() {
                                 <PopoverContent className="w-auto p-0" align="start">
                                   <Calendar
                                     mode="single"
+                                    locale={ptBR}
                                     selected={field.value}
                                     onSelect={field.onChange}
                                     disabled={(date) =>
