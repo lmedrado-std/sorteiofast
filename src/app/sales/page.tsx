@@ -387,17 +387,6 @@ export default function SalesPage() {
       <main className="flex-1 bg-gradient-to-b from-slate-50 to-white">
         <div className="container mx-auto px-3 py-4 md:px-4 md:py-8">
           <div className="mx-auto flex max-w-3xl flex-col gap-4 md:gap-8">
-
-            <Card>
-              <CardHeader className="px-4 py-3 md:px-6 md:py-4">
-                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-                  <User className="h-5 w-5 text-primary" /> Painel do Funcionário
-                </CardTitle>
-                <CardDescription className="mt-1 text-sm md:text-base">
-                  Registre vendas para gerar cupons e consulte seus cupons já gerados nesta campanha.
-                </CardDescription>
-              </CardHeader>
-            </Card>
           
             <CountdownTimer targetDate={campaignConfig.campaignEndDate} />
 
@@ -536,6 +525,7 @@ export default function SalesPage() {
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
                                   <Calendar
+                                    locale={ptBR}
                                     mode="single"
                                     selected={field.value}
                                     onSelect={field.onChange}
