@@ -116,18 +116,22 @@ export default function SalesPage() {
 
   const summary = useMemo(() => {
     if (!myCoupons || myCoupons.length === 0) {
-      return { count: 0, totalValue: 0 };
+      return { count: 0, totalValue: 0, sellerName: '' };
     }
     const uniqueSales = new Map<string, Sale>();
+    let sellerName = '';
     myCoupons.forEach(coupon => {
       if (coupon.sale && coupon.sale.id) {
         uniqueSales.set(coupon.sale.id, coupon.sale);
+        if (!sellerName && coupon.sale.sellerName) {
+            sellerName = coupon.sale.sellerName;
+        }
       }
     });
     const totalValue = Array.from(uniqueSales.values()).reduce((acc, sale) => {
       return acc + (sale.value || 0);
     }, 0);
-    return { count: myCoupons.length, totalValue };
+    return { count: myCoupons.length, totalValue, sellerName };
   }, [myCoupons]);
 
   useEffect(() => {
@@ -586,7 +590,12 @@ export default function SalesPage() {
 
                     {viewingCpf && !isSearchingCoupons && (
                       <div className="space-y-4">
-                        <h3 className="text-lg font-medium">Resultados para: <span className="font-bold text-primary">{viewingCpf}</span></h3>
+                        <h3 className="text-lg font-medium">
+                            Resultados para:{' '}
+                            <span className="font-bold text-primary">{summary.sellerName || viewingCpf}</span>
+                            {summary.sellerName && <span className='text-sm text-muted-foreground font-mono ml-2'>({viewingCpf})</span>}
+                        </h3>
+
                         {myCoupons.length > 0 ? (
                           <div className="space-y-4">
                             <div className="p-3 md:p-4 rounded-lg bg-slate-100/80 border border-slate-200/80 text-xs md:text-sm text-slate-600 space-y-2">
@@ -711,5 +720,3 @@ export default function SalesPage() {
     </div>
   );
 }
-
-    
