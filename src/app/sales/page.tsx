@@ -64,8 +64,8 @@ import { db } from '@/firebase';
 const saleSchema = z.object({
   sellerName: z.string().min(1, 'Nome do vendedor é obrigatório.'),
   cpf: z.string().min(11, 'CPF deve ter 11 dígitos.').max(11, 'CPF deve ter 11 dígitos.'),
-  value: z.coerce
-    .number()
+  value: z
+    .number({ invalid_type_error: "O valor é obrigatório."})
     .positive('O valor deve ser positivo.')
     .max(1000000, 'O valor máximo da venda não pode exceder R$ 1.000.000,00.'),
   date: z.date({
@@ -101,6 +101,7 @@ export default function SalesPage() {
   const [isSearchingCoupons, setIsSearchingCoupons] = useState(false);
   const [isSubmittingSale, setIsSubmittingSale] = useState(false);
   const [sellerRank, setSellerRank] = useState<{ position: number; totalSellers: number; store: string } | null>(null);
+  const [valueInput, setValueInput] = useState("");
 
   const [campaignConfig, setCampaignConfig] = useState<CampaignConfig>(defaultCampaignConfig);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
@@ -190,7 +191,7 @@ export default function SalesPage() {
     defaultValues: {
       sellerName: '',
       cpf: '',
-      value: 0,
+      value: undefined,
       date: new Date(),
     },
   });
@@ -347,10 +348,13 @@ export default function SalesPage() {
       });
 
       saleForm.reset({
-        ...saleForm.getValues(),
-        value: 0,
+        sellerName: saleForm.getValues("sellerName"),
+        cpf: saleForm.getValues("cpf"),
+        store: saleForm.getValues("store"),
+        value: undefined,
         date: new Date(),
       });
+      setValueInput("");
       
     } catch (error) {
       console.error("Error submitting sale:", error);
@@ -480,17 +484,19 @@ export default function SalesPage() {
                                 <FormControl>
                                   <Input
                                     placeholder="R$ 0,00"
-                                    {...field}
+                                    value={valueInput}
                                     onChange={(e) => {
-                                      const onlyDigits = e.target.value.replace(/\D/g, '');
+                                      const onlyDigits = e.target.value.replace(/\D/g, "");
+                                      if (!onlyDigits) {
+                                        setValueInput("");
+                                        field.onChange(undefined); // undefined para limpar o campo
+                                        return;
+                                      }
                                       const numericValue = Number(onlyDigits) / 100;
-                                      saleForm.setValue('value', numericValue, { shouldValidate: true });
-                                      field.onChange(formatCurrency(numericValue));
+                                      setValueInput(formatCurrency(numericValue));
+                                      field.onChange(numericValue); // Envia o número puro
                                     }}
                                     onBlur={field.onBlur}
-                                    value={
-                                      field.value === 0 ? '' : typeof field.value === 'number' ? formatCurrency(field.value) : field.value
-                                    }
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -644,7 +650,7 @@ export default function SalesPage() {
                                           <div className="flex flex-col">
                                             <span>Valor da venda</span>
                                             <span className="font-semibold text-slate-900">
-                                              R$ {Number(coupon.sale.value).toFixed(2)}
+                                              {formatCurrency(coupon.sale.value)}
                                             </span>
                                           </div>
                                           <div className="flex flex-col text-right">
@@ -679,15 +685,17 @@ export default function SalesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Registro de Venda?</AlertDialogTitle>
             {confirmationData && (
-                 <AlertDialogDescription>
-                    <p>Você confirma o registro da venda com os seguintes dados?</p>
-                    <ul className="mt-4 space-y-2 text-sm text-foreground">
-                        <li><strong>Vendedor:</strong> {confirmationData.sellerName}</li>
-                        <li><strong>CPF:</strong> {confirmationData.cpf}</li>
-                        <li><strong>Loja:</strong> {confirmationData.store}</li>
-                        <li><strong>Valor:</strong> {formatCurrency(confirmationData.value)}</li>
-                        <li><strong>Data:</strong> {format(confirmationData.date, 'dd/MM/yyyy', { locale: ptBR })}</li>
-                    </ul>
+                 <AlertDialogDescription asChild>
+                    <div>
+                        <p>Você confirma o registro da venda com os seguintes dados?</p>
+                        <ul className="mt-4 space-y-2 text-sm text-foreground">
+                            <li><strong>Vendedor:</strong> {confirmationData.sellerName}</li>
+                            <li><strong>CPF:</strong> {confirmationData.cpf}</li>
+                            <li><strong>Loja:</strong> {confirmationData.store}</li>
+                            <li><strong>Valor:</strong> {formatCurrency(confirmationData.value)}</li>
+                            <li><strong>Data:</strong> {format(confirmationData.date, 'dd/MM/yyyy', { locale: ptBR })}</li>
+                        </ul>
+                    </div>
                  </AlertDialogDescription>
             )}
           </AlertDialogHeader>
