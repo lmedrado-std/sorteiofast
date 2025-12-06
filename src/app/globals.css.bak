@@ -7,7 +7,7 @@ body {
 }
 
 /* Esconde completamente o cabeçalho de dias da semana do react-day-picker */
-.rdp-head {
+thead.rdp-head {
   display: none !important;
 }
 
@@ -91,11 +91,4 @@ body {
   body {
     @apply bg-background text-foreground;
   }
-}
-
-/* Remove completamente o cabeçalho de dias da semana do react-day-picker */
-thead.rdp-head,
-thead.rdp-head tr,
-thead.rdp-head th {
-  display: none !important;
 }
