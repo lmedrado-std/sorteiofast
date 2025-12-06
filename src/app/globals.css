@@ -6,6 +6,12 @@ body {
   font-family: 'PT Sans', sans-serif;
 }
 
+/* Esconde completamente o cabeçalho de dias da semana do react-day-picker */
+.rdp-head {
+  display: none !important;
+}
+
+
 @layer base {
   :root {
     --background: 336 100% 98%; /* light pink - F8BBD0 */
