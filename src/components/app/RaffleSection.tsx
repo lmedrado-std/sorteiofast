@@ -137,8 +137,8 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
             // 2. Start the visual animation sequence
             setIsRevealing(true);
             setRaffleMessage("Embaralhando os cupons...");
-            setTimeout(() => setRaffleMessage("Separando os ganhadores..."), 1500);
-            setTimeout(() => setRaffleMessage("Quase lá..."), 3000);
+            setTimeout(() => setRaffleMessage("Separando os ganhadores..."), 3000);
+            setTimeout(() => setRaffleMessage("Quase lá..."), 7000);
             
             // Decelerating roulette effect (safe version)
             rouletteActiveRef.current = true;
@@ -156,7 +156,7 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
             };
             runRoulette(50);
 
-            // 3. Stop roulette after a total of 4 seconds
+            // 3. Stop roulette after a total of 10 seconds
             setTimeout(() => {
                 rouletteActiveRef.current = false;
                 if (rouletteTimeoutRef.current) {
@@ -183,7 +183,7 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                     setIsLoading(false);
                 }, 2000);
 
-            }, 4000);
+            }, 10000);
 
         } catch (error) {
             console.error('Raffle error:', error);
