@@ -164,14 +164,20 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleDeleteAllCoupons = async () => {
-    if (allCoupons.length === 0) return;
+  const handleDeleteAllData = async () => {
+    if (allCoupons.length === 0 && allSales.length === 0) {
+      toast({ title: "Nenhum dado para excluir." });
+      return;
+    }
     const batch = writeBatch(db);
     allCoupons.forEach(coupon => {
       batch.delete(doc(db, 'coupons', coupon.id));
     });
+    allSales.forEach(sale => {
+      batch.delete(doc(db, 'sales', sale.id));
+    });
     await batch.commit();
-    toast({ title: "Todos os cupons foram excluídos!", variant: "destructive" });
+    toast({ title: "Todos os dados da campanha foram excluídos!", description: "Cupons e vendas foram removidos.", variant: "destructive" });
   };
   
   const handleDeleteWinnersHistory = async () => {
@@ -210,20 +216,20 @@ export default function AdminDashboardPage() {
         <div className="flex gap-2">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" disabled={allCoupons.length === 0}>
-                  <Trash2 className="mr-2 h-4 w-4" /> Excluir Todos os Cupons
+                <Button variant="destructive" size="sm" disabled={allCoupons.length === 0 && allSales.length === 0}>
+                  <Trash2 className="mr-2 h-4 w-4" /> Excluir Todos os Dados
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle />Tem certeza?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Essa ação não pode ser desfeita. Isso excluirá permanentemente todos os {allCoupons.length} cupons gerados.
+                    Essa ação não pode ser desfeita. Isso excluirá permanentemente todos os {allCoupons.length} cupons e as {allSales.length} vendas registradas.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteAllCoupons} className="bg-destructive hover:bg-destructive/90">
+                  <AlertDialogAction onClick={handleDeleteAllData} className="bg-destructive hover:bg-destructive/90">
                     Sim, excluir tudo
                   </AlertDialogAction>
                 </AlertDialogFooter>
