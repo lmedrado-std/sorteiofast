@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview Manages the raffle process using AI to randomly select winners from a pool of coupons.
+ * @fileOverview Manages the raffle process using a secure, server-side shuffling algorithm.
  *
  * - conductRaffle - A function that takes a list of coupons and the number of winners to select, returning a list of winning coupons.
  * - ConductRaffleInput - The input type for the conductRaffle function.
@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { webcrypto } from 'crypto'; // Use Node.js built-in crypto module
 
 const ConductRaffleInputSchema = z.object({
   coupons: z.array(z.string()).describe('An array of coupon codes to choose winners from.'),
@@ -32,19 +33,33 @@ export async function conductRaffle(input: ConductRaffleInput): Promise<ConductR
   return conductRaffleFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'conductRafflePrompt',
-  input: {schema: ConductRaffleInputSchema},
-  output: {schema: ConductRaffleOutputSchema},
-  prompt: `You are a raffle drawing assistant. You are given a list of coupons and the number of winners to select. You must randomly select the specified number of winners from the list of coupons.
+/**
+ * Generates a cryptographically secure random integer between 0 (inclusive) and max (exclusive).
+ * @param max The upper bound for the random number (exclusive).
+ * @returns A secure random integer.
+ */
+function secureRandomInt(max: number): number {
+  const array = new Uint32Array(1);
+  // Use webcrypto which is available in Node.js and browsers
+  webcrypto.getRandomValues(array);
+  // This is a common way to get a uniform distribution within a range.
+  return Math.floor((array[0] / (0xffffffff + 1)) * max);
+}
 
-Coupons: {{{coupons}}}
-Number of winners: {{{numberOfWinners}}}
+/**
+ * Shuffles an array in place using the Fisher-Yates algorithm with a secure random number generator.
+ * @param array The array to shuffle.
+ * @returns The shuffled array.
+ */
+function secureShuffle<T>(array: T[]): T[] {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = secureRandomInt(i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
 
-Please return a JSON array of the winning coupon codes. Make sure to select each coupon only once. Do not include any coupons that are not in the provided coupon list.
-
-Winning Coupons: `,
-});
 
 const conductRaffleFlow = ai.defineFlow(
   {
@@ -52,8 +67,12 @@ const conductRaffleFlow = ai.defineFlow(
     inputSchema: ConductRaffleInputSchema,
     outputSchema: ConductRaffleOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  async ({ coupons, numberOfWinners }) => {
+    // We are no longer using the LLM to pick winners.
+    // Instead, we use a cryptographically secure shuffle to ensure fairness.
+    const shuffledCoupons = secureShuffle(coupons);
+    const winningCoupons = shuffledCoupons.slice(0, numberOfWinners);
+    
+    return { winningCoupons };
   }
 );
