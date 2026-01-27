@@ -7,80 +7,82 @@ body {
 }
 
 /* Esconde completamente o cabeçalho de dias da semana do react-day-picker */
-.rdp-head {
+thead.rdp-head,
+thead.rdp-head tr,
+thead.rdp-head th {
   display: none !important;
 }
 
 
 @layer base {
   :root {
-    --background: 336 100% 98%; /* light pink - F8BBD0 */
-    --foreground: 338 60% 20%;
+    --background: 220 20% 99%;
+    --foreground: 220 10% 15%;
     --card: 0 0% 100%;
-    --card-foreground: 338 60% 20%;
+    --card-foreground: 220 10% 15%;
     --popover: 0 0% 100%;
-    --popover-foreground: 338 60% 20%;
-    --primary: 336 82% 52%; /* vivid pink - E91E63 */
+    --popover-foreground: 220 10% 15%;
+    --primary: 221 83% 53%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 336 70% 90%;
-    --secondary-foreground: 338 60% 30%;
-    --muted: 336 70% 94%;
-    --muted-foreground: 338 15% 45%;
-    --accent: 337 71% 44%; /* deep rose - C2185B */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 10% 30%;
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 10% 45%;
+    --accent: 221 83% 60%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 336 70% 88%;
-    --input: 336 70% 92%;
-    --ring: 336 82% 52%;
-    --chart-1: 336 82% 52%;
-    --chart-2: 337 71% 44%;
-    --chart-3: 336 70% 90%;
-    --chart-4: 336 70% 82%;
-    --chart-5: 336 70% 74%;
+    --border: 220 13% 91%;
+    --input: 220 13% 93%;
+    --ring: 221 83% 53%;
+    --chart-1: 221 83% 53%;
+    --chart-2: 221 71% 44%;
+    --chart-3: 221 70% 90%;
+    --chart-4: 221 70% 82%;
+    --chart-5: 221 70% 74%;
     --radius: 0.75rem;
-    --sidebar-background: 336 100% 98%;
-    --sidebar-foreground: 338 60% 20%;
-    --sidebar-primary: 336 82% 52%;
+    --sidebar-background: 220 20% 99%;
+    --sidebar-foreground: 220 10% 15%;
+    --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 336 70% 94%;
-    --sidebar-accent-foreground: 338 60% 20%;
-    --sidebar-border: 336 70% 88%;
-    --sidebar-ring: 336 82% 52%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 220 10% 15%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 221 83% 53%;
   }
   .dark {
-    --background: 338 30% 10%;
-    --foreground: 336 80% 95%;
-    --card: 338 25% 15%;
-    --card-foreground: 336 80% 95%;
-    --popover: 338 30% 10%;
-    --popover-foreground: 336 80% 95%;
-    --primary: 336 82% 52%;
+    --background: 220 10% 10%;
+    --foreground: 220 20% 95%;
+    --card: 220 10% 12%;
+    --card-foreground: 220 20% 95%;
+    --popover: 220 10% 10%;
+    --popover-foreground: 220 20% 95%;
+    --primary: 221 83% 53%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 338 25% 20%;
-    --secondary-foreground: 336 80% 95%;
-    --muted: 338 25% 20%;
-    --muted-foreground: 338 20% 70%;
-    --accent: 337 71% 44%;
+    --secondary: 220 10% 18%;
+    --secondary-foreground: 220 20% 95%;
+    --muted: 220 10% 18%;
+    --muted-foreground: 220 20% 70%;
+    --accent: 221 83% 60%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 338 25% 20%;
-    --input: 338 25% 20%;
-    --ring: 336 82% 52%;
-    --chart-1: 336 82% 52%;
-    --chart-2: 337 71% 44%;
-    --chart-3: 336 80% 90%;
-    --chart-4: 336 80% 82%;
-    --chart-5: 336 80% 74%;
-    --sidebar-background: 338 25% 10%;
-    --sidebar-foreground: 336 80% 95%;
-    --sidebar-primary: 336 82% 52%;
+    --border: 220 10% 18%;
+    --input: 220 10% 18%;
+    --ring: 221 83% 53%;
+    --chart-1: 221 83% 53%;
+    --chart-2: 221 71% 44%;
+    --chart-3: 221 80% 90%;
+    --chart-4: 221 80% 82%;
+    --chart-5: 221 80% 74%;
+    --sidebar-background: 220 10% 10%;
+    --sidebar-foreground: 220 20% 95%;
+    --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 338 25% 15%;
-    --sidebar-accent-foreground: 336 80% 95%;
-    --sidebar-border: 338 25% 15%;
-    --sidebar-ring: 336 82% 52%;
+    --sidebar-accent: 220 10% 15%;
+    --sidebar-accent-foreground: 220 20% 95%;
+    --sidebar-border: 220 10% 15%;
+    --sidebar-ring: 221 83% 53%;
   }
 }
 
@@ -91,11 +93,4 @@ body {
   body {
     @apply bg-background text-foreground;
   }
-}
-
-/* Remove completamente o cabeçalho de dias da semana do react-day-picker */
-thead.rdp-head,
-thead.rdp-head tr,
-thead.rdp-head th {
-  display: none !important;
 }
