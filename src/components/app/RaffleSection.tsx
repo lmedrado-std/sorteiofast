@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -59,6 +59,9 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
     const [raffleMessage, setRaffleMessage] = useState("Consultando a sorte...");
     const [isFinalReveal, setIsFinalReveal] = useState(false);
 
+    // Refs for safe animation control
+    const rouletteActiveRef = useRef(false);
+    const rouletteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const form = useForm<z.infer<typeof raffleSchema>>({
         resolver: zodResolver(raffleSchema),
@@ -137,18 +140,28 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
             setTimeout(() => setRaffleMessage("Separando os ganhadores..."), 1500);
             setTimeout(() => setRaffleMessage("Quase lá..."), 3000);
             
-            // Decelerating roulette effect
-            let rouletteTimeout: NodeJS.Timeout;
+            // Decelerating roulette effect (safe version)
+            rouletteActiveRef.current = true;
             const runRoulette = (speed: number) => {
+                if (!rouletteActiveRef.current) return;
+
                 const randomIndex = Math.floor(Math.random() * rouletteData.length);
                 setDisplayedInfo(rouletteData[randomIndex]);
-                rouletteTimeout = setTimeout(() => runRoulette(speed + 15), speed);
-            }
+
+                const nextSpeed = Math.min(speed + 15, 400); // Limit slowdown
+
+                rouletteTimeoutRef.current = setTimeout(() => {
+                    runRoulette(nextSpeed);
+                }, speed);
+            };
             runRoulette(50);
 
             // 3. Stop roulette after a total of 4 seconds
             setTimeout(() => {
-                clearTimeout(rouletteTimeout);
+                rouletteActiveRef.current = false;
+                if (rouletteTimeoutRef.current) {
+                    clearTimeout(rouletteTimeoutRef.current);
+                }
                 
                 // 4. Reveal the true winner with a "pop" animation
                 setIsFinalReveal(true);
@@ -208,7 +221,11 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                                 render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Filtrar por Loja</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select 
+                                        onValueChange={field.onChange} 
+                                        defaultValue={field.value}
+                                        disabled={isLoading || isRevealing}
+                                    >
                                     <FormControl>
                                         <SelectTrigger>
                                         <SelectValue placeholder="Sortear para todas as lojas" />
@@ -232,14 +249,19 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                                     <FormItem>
                                         <FormLabel>Número de Ganhadores</FormLabel>
                                         <FormControl>
-                                            <Input type="number" placeholder="Ex: 3" {...field} />
+                                            <Input 
+                                                type="number" 
+                                                placeholder="Ex: 3" 
+                                                {...field} 
+                                                disabled={isLoading || isRevealing}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
-                            <Button type="submit" className="w-full" disabled={isLoading || allCoupons.length === 0}>
-                                {isLoading ? (
+                            <Button type="submit" className="w-full" disabled={isLoading || isRevealing || allCoupons.length === 0}>
+                                {isLoading || isRevealing ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         Sorteando...
