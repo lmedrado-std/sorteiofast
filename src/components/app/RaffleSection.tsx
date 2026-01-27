@@ -55,7 +55,7 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
     
     // Animation states
     const [isRevealing, setIsRevealing] = useState(false);
-    const [displayedCoupon, setDisplayedCoupon] = useState<string | null>(null);
+    const [displayedInfo, setDisplayedInfo] = useState<{ id: string; name: string } | null>(null);
     const [raffleMessage, setRaffleMessage] = useState("Consultando a sorte...");
     const [isFinalReveal, setIsFinalReveal] = useState(false);
 
@@ -98,9 +98,17 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
             return;
         }
 
+        const rouletteData = couponsForRaffle.map(coupon => {
+            const sale = allSales.find(s => s.id === coupon.saleId);
+            return {
+                id: coupon.id,
+                name: sale?.sellerName || 'Desconhecido',
+            };
+        });
+
         setIsLoading(true);
         setLastWinners([]);
-        setDisplayedCoupon(null);
+        setDisplayedInfo(null);
         setIsFinalReveal(false);
 
         try {
@@ -132,8 +140,8 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
             // Decelerating roulette effect
             let rouletteTimeout: NodeJS.Timeout;
             const runRoulette = (speed: number) => {
-                const randomIndex = Math.floor(Math.random() * couponsForRaffle.length);
-                setDisplayedCoupon(couponsForRaffle[randomIndex].id);
+                const randomIndex = Math.floor(Math.random() * rouletteData.length);
+                setDisplayedInfo(rouletteData[randomIndex]);
                 rouletteTimeout = setTimeout(() => runRoulette(speed + 15), speed);
             }
             runRoulette(50);
@@ -144,7 +152,10 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                 
                 // 4. Reveal the true winner with a "pop" animation
                 setIsFinalReveal(true);
-                setDisplayedCoupon(winnerDetails[0].couponId);
+                setDisplayedInfo({
+                    id: winnerDetails[0].couponId,
+                    name: winnerDetails[0].sellerName,
+                });
 
                 // 5. After a final pause, show the result card
                 setTimeout(() => {
@@ -255,20 +266,27 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                     {isRevealing ? (
                         <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10 border-2 border-dashed rounded-lg bg-secondary/30">
                             <span className="text-sm">🎲 {raffleMessage}</span>
-                            <div className="my-4 text-2xl sm:text-3xl font-bold font-mono text-primary tracking-widest h-10 flex items-center justify-center overflow-hidden">
+                            <div className="my-4 text-2xl sm:text-3xl font-bold h-16 flex items-center justify-center overflow-hidden">
                                 <AnimatePresence mode="popLayout">
                                     <motion.div
-                                        key={displayedCoupon}
+                                        key={displayedInfo?.id || 'initial'}
                                         initial={{ y: 25, opacity: 0, scale: 0.8 }}
                                         animate={{
                                             y: 0,
                                             opacity: 1,
-                                            scale: isFinalReveal ? 1.3 : 1,
+                                            scale: isFinalReveal ? 1.2 : 1,
                                         }}
                                         transition={{ duration: isFinalReveal ? 0.4 : 0.1, type: "spring" }}
                                         className="text-center"
                                     >
-                                        {displayedCoupon || '...'}
+                                        {displayedInfo ? (
+                                            <div className="flex flex-col items-center leading-tight">
+                                                <span className="text-xl sm:text-2xl font-semibold text-primary">{displayedInfo.name}</span>
+                                                <span className="text-sm font-mono text-muted-foreground tracking-widest">{displayedInfo.id}</span>
+                                            </div>
+                                        ) : (
+                                            '...'
+                                        )}
                                     </motion.div>
                                 </AnimatePresence>
                             </div>
