@@ -52,7 +52,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { cn, isCampaignActive as isCampaignStillActive } from '@/lib/utils';
+import { cn, isCampaignActive as isCampaignStillActive, isValidCPF } from '@/lib/utils';
 import type { Sale, Coupon } from '@/lib/types';
 import AppHeader from '@/components/app/AppHeader';
 import CountdownTimer from '@/components/app/CountdownTimer';
@@ -63,7 +63,9 @@ import { db } from '@/firebase';
 
 const saleSchema = z.object({
   sellerName: z.string().min(1, 'Nome do vendedor é obrigatório.'),
-  cpf: z.string().min(11, 'CPF deve ter 11 dígitos.').max(11, 'CPF deve ter 11 dígitos.'),
+  cpf: z.string().min(1, "CPF é obrigatório.").refine(isValidCPF, {
+    message: "O CPF informado é inválido.",
+  }),
   value: z
     .number({ invalid_type_error: "O valor é obrigatório."})
     .positive('O valor deve ser positivo.')
@@ -75,7 +77,9 @@ const saleSchema = z.object({
 });
 
 const couponQuerySchema = z.object({
-  cpf: z.string().min(11, 'CPF deve ter 11 dígitos.').max(11, 'CPF deve ter 11 dígitos.'),
+  cpf: z.string().min(1, "CPF é obrigatório.").refine(isValidCPF, {
+    message: "O CPF informado é inválido.",
+  }),
 });
 
 type CouponWithSaleData = Coupon & { sale?: Sale };
@@ -211,11 +215,12 @@ export default function SalesPage() {
     setIsSearchingCoupons(true);
     setMyCoupons([]);
     setSellerRank(null);
-    setViewingCpf(data.cpf);
+    const cleanedCpf = data.cpf.replace(/[^\d]/g, "");
+    setViewingCpf(cleanedCpf);
 
     try {
       const couponsRef = collection(db, 'coupons');
-      const q = query(couponsRef, where("employeeId", "==", data.cpf));
+      const q = query(couponsRef, where("employeeId", "==", cleanedCpf));
       const couponSnap = await getDocs(q);
       const employeeCoupons = couponSnap.docs.map(doc => ({ ...doc.data() as Coupon, id: doc.id }));
 
@@ -229,7 +234,7 @@ export default function SalesPage() {
       }
       
       const saleIds = [...new Set(employeeCoupons.map(c => c.saleId).filter(Boolean))];
-      const userSales = allSales.filter(s => s.employeeId === data.cpf);
+      const userSales = allSales.filter(s => s.employeeId === cleanedCpf);
       const userStore = userSales.length > 0 ? userSales[0].store : null;
       
       const couponsWithSaleData: CouponWithSaleData[] = employeeCoupons.map(coupon => {
@@ -255,7 +260,7 @@ export default function SalesPage() {
           .map(cpf => ({ cpf, totalSalesValue: sellerMap[cpf].totalSalesValue }))
           .sort((a, b) => b.totalSalesValue - a.totalSalesValue);
         
-        const myRankIndex = rankedSellers.findIndex(seller => seller.cpf === data.cpf);
+        const myRankIndex = rankedSellers.findIndex(seller => seller.cpf === cleanedCpf);
         
         if (myRankIndex !== -1) {
           setSellerRank({
@@ -312,12 +317,19 @@ export default function SalesPage() {
       setConfirmationData(null);
       return;
     }
+    
+    const cleanedCpf = confirmationData.cpf.replace(/[^\d]/g, "");
 
     try {
         const salesColRef = collection(db, 'sales');
         const couponsColRef = collection(db, 'coupons');
         
-        const saleData: Omit<Sale, 'id'> = { ...confirmationData, employeeId: confirmationData.cpf, date: confirmationData.date, customerName: '' };
+        const saleData: Omit<Sale, 'id'> = { 
+            ...confirmationData,
+            cpf: cleanedCpf, 
+            employeeId: cleanedCpf,
+            customerName: '' 
+        };
         
         const saleRef = await addDoc(salesColRef, saleData);
         const saleId = saleRef.id;
@@ -332,7 +344,7 @@ export default function SalesPage() {
           for (let i = 0; i < couponCount; i++) {
             const newCouponData: Omit<Coupon, 'id'> = {
                 saleId: saleId,
-                employeeId: confirmationData.cpf,
+                employeeId: cleanedCpf,
             };
             const couponRef = await addDoc(couponsColRef, newCouponData);
             const newCouponWithId = { ...newCouponData, id: couponRef.id };
@@ -341,7 +353,7 @@ export default function SalesPage() {
           }
         }
 
-      if (viewingCpf === confirmationData.cpf) {
+      if (viewingCpf === cleanedCpf) {
         setMyCoupons(prev => [...prev, ...newCoupons]);
       }
 
