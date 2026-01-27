@@ -23,7 +23,7 @@ export default function Home() {
           {/* Hero */}
           <section className="container mx-auto px-4 pt-16 pb-12 text-center max-w-3xl">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tighter text-foreground">
-              Campanha de Vendas SuperSorteios
+              Super Sorteios
             </h1>
             <p className="mt-4 text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">
               Acesse a área do funcionário para registrar suas vendas ou o painel de administrador para gerenciar a campanha.
