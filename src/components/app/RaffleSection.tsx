@@ -52,6 +52,8 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
     const { toast } = useToast();
     const [lastWinners, setLastWinners] = useState<Winner[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isRevealing, setIsRevealing] = useState(false);
+    const [displayedCoupon, setDisplayedCoupon] = useState<string | null>(null);
 
     const form = useForm<z.infer<typeof raffleSchema>>({
         resolver: zodResolver(raffleSchema),
@@ -93,6 +95,7 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
 
         setIsLoading(true);
         setLastWinners([]);
+        setDisplayedCoupon(null);
 
         try {
             const result = await conductRaffle({
@@ -113,13 +116,34 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                 };
             });
             
-            setLastWinners(winnerDetails);
-            onRaffleConducted(winnerDetails);
+            // Start animation
+            setIsRevealing(true);
+            const rouletteInterval = setInterval(() => {
+                const randomIndex = Math.floor(Math.random() * couponsForRaffle.length);
+                setDisplayedCoupon(couponsForRaffle[randomIndex].id);
+            }, 80);
 
-            toast({
-                title: "Sorteio Realizado!",
-                description: `${winnerDetails.length} ganhador(es) foram selecionados!`,
-            });
+            // Stop roulette after a few seconds
+            setTimeout(() => {
+                clearInterval(rouletteInterval);
+                
+                // Reveal the true winner
+                setDisplayedCoupon(winnerDetails[0].couponId);
+
+                // After a final pause, show the result card
+                setTimeout(() => {
+                    setIsRevealing(false);
+                    setLastWinners(winnerDetails);
+                    onRaffleConducted(winnerDetails);
+                    toast({
+                        title: "Sorteio Realizado!",
+                        description: `${winnerDetails.length} ganhador(es) foram selecionados!`,
+                    });
+                    setIsLoading(false); // End loading state
+                }, 2000); // Wait 2s on the winning number
+
+            }, 4000); // 4s of roulette
+
         } catch (error) {
             console.error('Raffle error:', error);
             toast({
@@ -127,8 +151,8 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                 title: 'Erro no Sorteio',
                 description: 'Ocorreu um erro ao tentar realizar o sorteio. Tente novamente.',
             });
-        } finally {
             setIsLoading(false);
+            setIsRevealing(false);
         }
     };
     
@@ -212,7 +236,26 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                     <CardDescription>Os cupons do último sorteio serão exibidos aqui.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {lastWinners.length > 0 ? (
+                    {isRevealing ? (
+                        <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10 border-2 border-dashed rounded-lg bg-secondary/30">
+                            <span className="text-sm">🎲 Consultando a sorte...</span>
+                            <div className="my-4 text-2xl sm:text-3xl font-bold font-mono text-primary tracking-widest h-10 flex items-center justify-center overflow-hidden">
+                                <AnimatePresence mode="popLayout">
+                                    <motion.div
+                                        key={displayedCoupon}
+                                        initial={{ y: 25, opacity: 0, scale: 0.8 }}
+                                        animate={{ y: 0, opacity: 1, scale: 1 }}
+                                        exit={{ y: -25, opacity: 0, scale: 0.8 }}
+                                        transition={{ duration: 0.1 }}
+                                        className="text-center"
+                                    >
+                                        {displayedCoupon || '...'}
+                                    </motion.div>
+                                </AnimatePresence>
+                            </div>
+                            <span className="text-sm">Sorteando...</span>
+                        </div>
+                    ) : lastWinners.length > 0 ? (
                         <ul className="space-y-3">
                             <AnimatePresence>
                                 {lastWinners.map((winner, index) => (
