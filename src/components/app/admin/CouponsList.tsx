@@ -117,7 +117,7 @@ export default function CouponsList({ allCoupons, allSales, onDeleteCoupon, onDe
                               <span className='font-semibold'>{group.sellerName}</span>
                               <span className='text-xs text-muted-foreground font-mono'>{group.cpf}</span>
                           </div>
-                          <Badge variant="secondary" className="ml-0 sm:ml-2 w-fit">{group.items.length} cupom{group.items.length > 1 ? 'ns' : 'm'}</Badge>
+                          <Badge variant="secondary" className="ml-0 sm:ml-2 w-fit">{group.items.length} cupom{group.items.length === 1 ? '' : 's'}</Badge>
                       </div>
                     </AccordionTrigger>
                     
