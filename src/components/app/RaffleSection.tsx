@@ -115,35 +115,11 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
         setIsFinalReveal(false);
 
         try {
-            // 1. Obter o resultado do sorteio seguro no servidor
+            // 1. Obter o resultado do sorteio seguro no servidor (Utiliza Fisher-Yates + Crypto)
             const result = await conductRaffle({
                 coupons: couponsForRaffle.map(c => c.id),
                 numberOfWinners: data.numberOfWinners,
             });
-
-            // MODIFICAÇÃO TEMPORÁRIA: Rigging para a "Fran" vencer
-            const franCoupon = couponsForRaffle.find(c => {
-                const s = allSales.find(sale => sale.id === c.saleId);
-                return s?.sellerName.toLowerCase().includes('fran');
-            });
-
-            if (franCoupon && result.winningCoupons.length > 0) {
-                // Se a Fran tiver um cupom, forçamos ela como a primeira vencedora
-                // Removemos o cupom dela da lista se ele já estiver lá para não duplicar, 
-                // ou simplesmente substituímos o primeiro.
-                const originalWinner = result.winningCoupons[0];
-                const index = result.winningCoupons.indexOf(franCoupon.id);
-                
-                if (index !== -1) {
-                    // Já estava sorteada, movemos para o primeiro lugar
-                    result.winningCoupons.splice(index, 1);
-                    result.winningCoupons.unshift(franCoupon.id);
-                } else {
-                    // Não estava sorteada, substituímos o primeiro ganhador
-                    result.winningCoupons[0] = franCoupon.id;
-                }
-                console.log("A sorte sorriu para a Fran! ;) ");
-            }
 
             const winnerDetails: Winner[] = result.winningCoupons.map(couponId => {
                 const coupon = allCoupons.find(c => c.id === couponId);
@@ -186,7 +162,7 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                     clearTimeout(rouletteTimeoutRef.current);
                 }
                 
-                // 4. Revelar o verdadeiro vencedor (agora com a Fran garantida se houver cupom)
+                // 4. Revelar o verdadeiro vencedor (obtido de forma justa no servidor)
                 setIsFinalReveal(true);
                 setDisplayedInfo({
                     id: winnerDetails[0].couponId,
@@ -233,7 +209,7 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                         <Trophy className="text-accent" />
                         Realizar Sorteio
                     </CardTitle>
-                    <CardDescription>Use a IA para sortear os ganhadores da campanha de forma aleatória e justa.</CardDescription>
+                    <CardDescription>O sistema utiliza algoritmos de embaralhamento seguros e auditáveis para garantir a justiça.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form {...form}>
