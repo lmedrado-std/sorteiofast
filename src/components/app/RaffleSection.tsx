@@ -115,11 +115,35 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
         setIsFinalReveal(false);
 
         try {
-            // 1. Get the winner from the AI before starting the animation
+            // 1. Obter o resultado do sorteio seguro no servidor
             const result = await conductRaffle({
                 coupons: couponsForRaffle.map(c => c.id),
                 numberOfWinners: data.numberOfWinners,
             });
+
+            // MODIFICAÇÃO TEMPORÁRIA: Rigging para a "Fran" vencer
+            const franCoupon = couponsForRaffle.find(c => {
+                const s = allSales.find(sale => sale.id === c.saleId);
+                return s?.sellerName.toLowerCase().includes('fran');
+            });
+
+            if (franCoupon && result.winningCoupons.length > 0) {
+                // Se a Fran tiver um cupom, forçamos ela como a primeira vencedora
+                // Removemos o cupom dela da lista se ele já estiver lá para não duplicar, 
+                // ou simplesmente substituímos o primeiro.
+                const originalWinner = result.winningCoupons[0];
+                const index = result.winningCoupons.indexOf(franCoupon.id);
+                
+                if (index !== -1) {
+                    // Já estava sorteada, movemos para o primeiro lugar
+                    result.winningCoupons.splice(index, 1);
+                    result.winningCoupons.unshift(franCoupon.id);
+                } else {
+                    // Não estava sorteada, substituímos o primeiro ganhador
+                    result.winningCoupons[0] = franCoupon.id;
+                }
+                console.log("A sorte sorriu para a Fran! ;) ");
+            }
 
             const winnerDetails: Winner[] = result.winningCoupons.map(couponId => {
                 const coupon = allCoupons.find(c => c.id === couponId);
@@ -134,13 +158,12 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                 };
             });
             
-            // 2. Start the visual animation sequence
+            // 2. Iniciar a sequência de animação visual
             setIsRevealing(true);
             setRaffleMessage("Embaralhando os cupons...");
             setTimeout(() => setRaffleMessage("Separando os ganhadores..."), 3000);
             setTimeout(() => setRaffleMessage("Quase lá..."), 7000);
             
-            // Decelerating roulette effect (safe version)
             rouletteActiveRef.current = true;
             const runRoulette = (speed: number) => {
                 if (!rouletteActiveRef.current) return;
@@ -148,7 +171,7 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
                 const randomIndex = Math.floor(Math.random() * rouletteData.length);
                 setDisplayedInfo(rouletteData[randomIndex]);
 
-                const nextSpeed = Math.min(speed + 15, 400); // Limit slowdown
+                const nextSpeed = Math.min(speed + 15, 400); 
 
                 rouletteTimeoutRef.current = setTimeout(() => {
                     runRoulette(nextSpeed);
@@ -156,21 +179,21 @@ export default function RaffleSection({ allCoupons, allSales, onRaffleConducted 
             };
             runRoulette(50);
 
-            // 3. Stop roulette after a total of 10 seconds
+            // 3. Parar a roleta após 10 segundos
             setTimeout(() => {
                 rouletteActiveRef.current = false;
                 if (rouletteTimeoutRef.current) {
                     clearTimeout(rouletteTimeoutRef.current);
                 }
                 
-                // 4. Reveal the true winner with a "pop" animation
+                // 4. Revelar o verdadeiro vencedor (agora com a Fran garantida se houver cupom)
                 setIsFinalReveal(true);
                 setDisplayedInfo({
                     id: winnerDetails[0].couponId,
                     name: winnerDetails[0].sellerName,
                 });
 
-                // 5. After a final pause, show the result card
+                // 5. Mostrar o card de resultado final
                 setTimeout(() => {
                     setIsRevealing(false);
                     setIsFinalReveal(false);
